@@ -153,7 +153,7 @@ function App() {
         {/* Top Header */}
         <header className="chat-header">
           <div className="header-left">
-            <span className="bot-title">AI</span>
+            <span className="bot-title">Mayank</span>
             <span className="separator">/</span>
             <span className="status-indicator">
               <span className="status-dot"></span> Online
@@ -193,7 +193,7 @@ function App() {
             <div key={index} className={`message-item ${msg.role}`}>
               <div className="message-meta">
                 <span className={`sender-name ${msg.role}`}>
-                  {msg.role === 'user' ? 'User' : '🤖 AI'}
+                  {msg.role === 'user' ? 'User' : '🤖 Mayank'}
                 </span>
                 <span className="message-time">{msg.time || 'now'}</span>
               </div>
@@ -226,7 +226,7 @@ function App() {
           {loading && (
             <div className="message-item assistant loading-item">
               <div className="message-meta">
-                <span className="sender-name assistant">🤖 AI</span>
+                <span className="sender-name assistant">🤖 Mayank</span>
                 <span className="message-time">typing...</span>
               </div>
               <div className="typing-dots">
