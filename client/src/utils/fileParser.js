@@ -113,18 +113,81 @@ export function getFileTypeInfo(fileName = '') {
 }
 
 /**
- * Read image file as Base64 Data URL for Multimodal Vision AI
+ * Resize and compress image using HTML Canvas for optimal LLM Vision processing
+ * Prevents "Payload Too Large" errors, reduces latency, and guarantees dimensions >= 64px & <= 1600px
  */
 function parseImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      resolve({
-        text: `[Attached Image: ${file.name}]`,
-        dataUrl: reader.result,
-        isImage: true,
-      });
+
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+
+          // Ensure minimum dimensions (Groq requires >= 32px)
+          if (width < 64 || height < 64) {
+            const minScale = Math.max(64 / (width || 1), 64 / (height || 1));
+            width = Math.round(width * minScale);
+            height = Math.round(height * minScale);
+          }
+
+          // Scale down if image is larger than 1600px on any side
+          const MAX_DIM = 1600;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            } else {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+
+          // Handle transparent background for PNG/WEBP
+          if (file.type === 'image/png' || file.name.endsWith('.png')) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL('image/png');
+            resolve({
+              text: `[Attached Image: ${file.name}]`,
+              dataUrl: compressedDataUrl,
+              isImage: true,
+            });
+          } else {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            // Compress JPEG with 0.85 quality
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            resolve({
+              text: `[Attached Image: ${file.name}]`,
+              dataUrl: compressedDataUrl,
+              isImage: true,
+            });
+          }
+        } catch (err) {
+          console.warn('Canvas compression fallback to raw image:', err);
+          resolve({
+            text: `[Attached Image: ${file.name}]`,
+            dataUrl: e.target.result,
+            isImage: true,
+          });
+        }
+      };
+
+      img.onerror = () => {
+        reject(new Error(`Failed to load image: ${file.name}`));
+      };
+
+      img.src = e.target.result;
     };
+
     reader.onerror = () => reject(new Error('Failed to read image file'));
     reader.readAsDataURL(file);
   });

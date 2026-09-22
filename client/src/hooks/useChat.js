@@ -148,17 +148,19 @@ export function useChat() {
         }
       }
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMsgId
-            ? {
-                ...msg,
-                content: displayedText || fullResponseText || 'No response generated.',
-                isStreaming: false,
-              }
-            : msg
-        )
-      );
+      if (!streamError) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  content: displayedText || fullResponseText || 'No response generated.',
+                  isStreaming: false,
+                }
+              : msg
+          )
+        );
+      }
     })();
 
     // Call custom backend API

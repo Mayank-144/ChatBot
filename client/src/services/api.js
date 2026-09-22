@@ -9,23 +9,31 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
  */
 export async function sendChatMessage({ messages, onChunk, onDone, onError }) {
   try {
+    // Determine which messages carry image data. Groq supports max 3 images per request.
+    // For older chat history, we retain text content and strip base64 data to prevent payload bloat.
+    const formattedPayload = messages.map((m, idx, arr) => {
+      const isRecent = idx >= arr.length - 2; // Only attach base64 for the most recent message(s)
+      return {
+        role: m.role,
+        content: m.apiPayload || m.content || '',
+        images: isRecent && Array.isArray(m.images) ? m.images.slice(0, 3) : [],
+      };
+    });
+
     const response = await fetch(BACKEND_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.apiPayload || m.content,
-          images: m.images || [],
-        })),
+        messages: formattedPayload,
       }),
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => null);
-      throw new Error(errData?.error?.message || `Server responded with status ${response.status}`);
+      const serverErrMsg = errData?.error?.message || `Server responded with status ${response.status}`;
+      throw new Error(serverErrMsg);
     }
 
     if (response.body && response.body.getReader) {

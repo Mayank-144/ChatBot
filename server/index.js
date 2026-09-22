@@ -68,31 +68,38 @@ app.post('/api/chat', async (req, res) => {
 
   const groqApiUrl = process.env.GROQ_API_URL || process.env.VITE_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
 
-  // Format messages payload for Groq
-  const formattedMessages = messages.map((m) => {
-    if (m.images && Array.isArray(m.images) && m.images.length > 0) {
-      const textPart =
-        typeof m.content === 'string' && m.content.trim()
-          ? m.content.trim()
-          : 'Please describe what you see in this image in detail and answer any questions about it.';
+  // Count total images and enforce max 3 images limit for Groq
+  let totalImagesCount = 0;
+  const formattedMessages = messages
+    .filter((m) => m && (m.content || (m.images && m.images.length > 0)))
+    .map((m) => {
+      if (m.images && Array.isArray(m.images) && m.images.length > 0 && totalImagesCount < 3) {
+        const availableSlots = 3 - totalImagesCount;
+        const attachedImages = m.images.slice(0, availableSlots);
+        totalImagesCount += attachedImages.length;
+
+        const textPart =
+          typeof m.content === 'string' && m.content.trim()
+            ? m.content.trim()
+            : 'Please describe and analyze what you see in the attached image(s) in detail.';
+
+        return {
+          role: m.role || 'user',
+          content: [
+            { type: 'text', text: textPart },
+            ...attachedImages.map((url) => ({
+              type: 'image_url',
+              image_url: { url },
+            })),
+          ],
+        };
+      }
 
       return {
         role: m.role || 'user',
-        content: [
-          { type: 'text', text: textPart },
-          ...m.images.map((url) => ({
-            type: 'image_url',
-            image_url: { url },
-          })),
-        ],
+        content: typeof m.content === 'string' && m.content.trim() ? m.content.trim() : (m.content || 'Hello'),
       };
-    }
-
-    return {
-      role: m.role || 'user',
-      content: m.content || '',
-    };
-  });
+    });
 
   try {
     const groqResponse = await fetch(groqApiUrl, {
