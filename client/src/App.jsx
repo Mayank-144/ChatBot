@@ -60,7 +60,7 @@ function App() {
         ref={fileInputRef}
         onChange={handleFileSelect}
         multiple
-        accept=".pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.json,.md,.js,.jsx,.ts,.tsx,.py,.html,.css,.sql,.xml,.yaml,.yml,.log"
+        accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.json,.md,.js,.jsx,.ts,.tsx,.py,.html,.css,.sql,.xml,.yaml,.yml,.log"
         style={{ display: 'none' }}
       />
 

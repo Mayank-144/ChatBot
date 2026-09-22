@@ -18,6 +18,7 @@ export async function sendChatMessage({ messages, onChunk, onDone, onError }) {
         messages: messages.map((m) => ({
           role: m.role,
           content: m.apiPayload || m.content,
+          images: m.images || [],
         })),
       }),
     });

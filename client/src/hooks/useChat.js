@@ -37,29 +37,41 @@ export function useChat() {
 
     if ((!hasInput && !hasFiles) || loading) return;
 
-    // Attached file metadata for UI cards
+    // Attached file metadata for UI cards (including images)
     const attachedMetadata = stagedFiles.map((f) => ({
       id: f.id,
       name: f.name,
       size: f.size,
       typeInfo: f.typeInfo,
       status: f.status,
+      isImage: f.isImage,
+      dataUrl: f.dataUrl,
     }));
+
+    const imageFiles = stagedFiles.filter((f) => f.isImage && f.dataUrl && f.status === 'ready');
+    const docFiles = stagedFiles.filter((f) => !f.isImage && f.status === 'ready');
+    const imageUrls = imageFiles.map((f) => f.dataUrl);
 
     let promptText = input.trim();
 
     if (hasFiles) {
-      const documentContexts = stagedFiles
-        .filter((f) => f.status === 'ready')
+      const documentContexts = docFiles
         .map((f) => f.parsedContent)
+        .filter(Boolean)
         .join('\n\n');
 
       if (!promptText) {
-        promptText =
-          'Please analyze the attached document(s), provide a comprehensive overview and highlight the key data, insights, or findings.';
+        if (imageFiles.length > 0 && docFiles.length === 0) {
+          promptText = 'Please describe this image in detail and tell me what is happening in it.';
+        } else {
+          promptText =
+            'Please analyze the attached document(s), provide a comprehensive overview and highlight the key data, insights, or findings.';
+        }
       }
 
-      var fullApiContent = `[ATTACHED DOCUMENTS & DATA]\n\n${documentContexts}\n\n[USER REQUEST]\n${promptText}`;
+      var fullApiContent = documentContexts
+        ? `[ATTACHED DOCUMENTS & DATA]\n\n${documentContexts}\n\n[USER REQUEST]\n${promptText}`
+        : promptText;
     } else {
       var fullApiContent = promptText;
     }
@@ -68,6 +80,7 @@ export function useChat() {
       role: 'user',
       content: input.trim() || (hasFiles ? `Uploaded: ${stagedFiles.map((f) => f.name).join(', ')}` : ''),
       files: attachedMetadata,
+      images: imageUrls,
       apiPayload: fullApiContent,
     };
 

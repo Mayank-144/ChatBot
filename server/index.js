@@ -7,9 +7,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from local or root .env
-dotenv.config();
+// Load environment variables from server/.env, root .env, or process env
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,8 +55,44 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  const targetModel = model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b';
+  // Detect if any message contains image data
+  const hasImages = messages.some(
+    (m) => (m.images && Array.isArray(m.images) && m.images.length > 0) ||
+           (Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url'))
+  );
+
+  // Use vision-capable multimodal model when images are present
+  const targetModel = hasImages
+    ? 'qwen/qwen3.8-27b'
+    : (model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b');
+
   const groqApiUrl = process.env.GROQ_API_URL || process.env.VITE_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
+
+  // Format messages payload for Groq
+  const formattedMessages = messages.map((m) => {
+    if (m.images && Array.isArray(m.images) && m.images.length > 0) {
+      const textPart =
+        typeof m.content === 'string' && m.content.trim()
+          ? m.content.trim()
+          : 'Please describe what you see in this image in detail and answer any questions about it.';
+
+      return {
+        role: m.role || 'user',
+        content: [
+          { type: 'text', text: textPart },
+          ...m.images.map((url) => ({
+            type: 'image_url',
+            image_url: { url },
+          })),
+        ],
+      };
+    }
+
+    return {
+      role: m.role || 'user',
+      content: m.content || '',
+    };
+  });
 
   try {
     const groqResponse = await fetch(groqApiUrl, {
@@ -66,10 +103,7 @@ app.post('/api/chat', async (req, res) => {
       },
       body: JSON.stringify({
         model: targetModel,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
+        messages: formattedMessages,
         stream: true,
       }),
     });

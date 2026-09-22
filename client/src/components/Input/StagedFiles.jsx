@@ -8,7 +8,11 @@ export function StagedFiles({ stagedFiles, onRemoveFile }) {
       {stagedFiles.map((item) => (
         <div key={item.id} className={`staged-file-chip ${item.status}`}>
           <div className="staged-file-icon" style={{ background: item.typeInfo.bgColor }}>
-            <FileIcon category={item.typeInfo.category} />
+            {item.isImage && item.dataUrl ? (
+              <img src={item.dataUrl} alt={item.name} className="staged-thumb-img" />
+            ) : (
+              <FileIcon category={item.typeInfo.category} />
+            )}
           </div>
           <div className="staged-file-info">
             <span className="staged-file-name" title={item.name}>

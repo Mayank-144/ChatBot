@@ -25,10 +25,22 @@ export function useFileUpload() {
 
     for (const item of newStaged) {
       try {
-        const text = await extractTextFromFile(item.file);
+        const parsed = await extractTextFromFile(item.file);
+        const text = typeof parsed === 'object' ? parsed.text : parsed;
+        const dataUrl = typeof parsed === 'object' ? parsed.dataUrl : null;
+        const isImage = typeof parsed === 'object' ? parsed.isImage : false;
+
         setStagedFiles((prev) =>
           prev.map((f) =>
-            f.id === item.id ? { ...f, status: 'ready', parsedContent: text } : f
+            f.id === item.id
+              ? {
+                  ...f,
+                  status: 'ready',
+                  parsedContent: text,
+                  dataUrl,
+                  isImage,
+                }
+              : f
           )
         );
       } catch (err) {

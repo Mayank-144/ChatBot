@@ -8,11 +8,12 @@ export function EmptyState() {
           </svg>
         </div>
         <h2>What can I help you analyze today?</h2>
-        <p>Upload documents (PDF, Excel, Word, CSV) or type your message below to get started.</p>
+        <p>Upload images, documents (PDF, Excel, Word, CSV), or type a message below.</p>
         <div className="quick-features-row">
+          <span className="feature-pill">🖼️ Image & Vision Analysis</span>
           <span className="feature-pill">📄 PDF Analysis</span>
           <span className="feature-pill">📊 Excel & CSV Insights</span>
-          <span className="feature-pill">📝 Word & Text Summaries</span>
+          <span className="feature-pill">📝 Word & Code Summaries</span>
         </div>
       </div>
     </div>

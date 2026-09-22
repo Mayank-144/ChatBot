@@ -1,17 +1,18 @@
-# Mayank AI Fullstack Chatbot (React + Node.js Express)
+# Mayank AI Fullstack Chatbot (React + Node.js Express + Multimodal Vision)
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://expressjs.com/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern, production-ready Fullstack AI Chatbot with **Clean Client-Server Architecture**. Features ChatGPT-style multi-format document analysis (PDF, Excel, Word, CSV, Code, Text), smooth real-time token streaming with line-by-line typewriter animations, and custom backend API routes.
+A modern, production-ready Fullstack AI Chatbot with **Clean Client-Server Architecture** and **Multimodal Vision Intelligence**. Features ChatGPT-style multi-format document analysis (PDF, Excel, Word, CSV, Code, Text), **image upload & visual recognition** (`.png`, `.jpg`, `.jpeg`, `.webp`, etc.), smooth real-time token streaming with line-by-line typewriter animations, and seamless deployment on both local Express and Vercel serverless edge functions.
 
 ---
 
 ## 🏗️ Project Architecture
 
-The project is structured into two dedicated workspaces:
+The project is cleanly structured into two dedicated workspaces plus Vercel serverless edge functions:
 
 ```
 ChatBot/
@@ -21,7 +22,7 @@ ChatBot/
 │   │   ├── components/          # Reusable UI components (Icons, Header, Chat, Input)
 │   │   ├── hooks/               # Custom React hooks (useChat, useFileUpload, useTheme)
 │   │   ├── services/            # API service (communicates with /api/chat)
-│   │   ├── utils/               # File parsing utilities (PDF, Excel, Word, Text)
+│   │   ├── utils/               # File & image parsing utilities (PDF, Excel, Word, Text, Images)
 │   │   ├── App.jsx              # Main clean React component
 │   │   ├── App.css              # Custom CSS design system
 │   │   └── main.jsx             # React entry point
@@ -35,6 +36,11 @@ ChatBot/
 │   ├── .env                     # Server environment configuration & Groq API key
 │   └── package.json             # Backend dependencies
 │
+├── api/                         # ⚡ VERCEL SERVERLESS EDGE FUNCTIONS
+│   ├── chat.js                  # Edge streaming /api/chat endpoint
+│   └── health.js                # Edge /api/health endpoint
+│
+├── vercel.json                  # Vercel deployment configuration
 ├── package.json                 # Monorepo runner (npm run dev)
 ├── .gitignore                   # Git ignore for node_modules and .env files
 └── README.md                    # Project documentation
@@ -44,7 +50,9 @@ ChatBot/
 
 ## ✨ Key Features
 
-- ⚙️ **Self-Created Backend API**: Node.js Express server running on port 5000 with streaming chat completions and health monitoring.
+- 🖼️ **Multimodal Vision & Image Analysis**: Upload images and screenshots (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`, `.svg`). The AI understands visual context, charts, diagrams, and UI screenshots with real-time streaming explanation.
+- ⚙️ **Self-Created Backend API**: Node.js Express server running on port 5000 with streaming chat completions, multimodal vision routing, and health monitoring.
+- ☁️ **Vercel Serverless Ready**: Native edge function support in `api/` for zero-configuration, lightning-fast deployment on Vercel.
 - 📎 **ChatGPT-Style File Uploads**: Upload & analyze **PDF**, **Excel (`.xlsx`/`.xls`)**, **Word (`.docx`)**, **CSV**, **JSON**, and **Code** files.
 - 🖋️ **Line-by-Line Typewriter Animation**: Natural reading-speed generation with dynamic line pauses and blinking cursor.
 - 🌓 **Dark & Light Mode**: Instant theme switching with persistent local storage.
@@ -54,7 +62,7 @@ ChatBot/
 
 ---
 
-## 🚀 How to Run
+## 🚀 How to Run Locally
 
 ### Method 1: Single Command (Recommended)
 From the root folder, run both the backend server (Port 5000) and frontend client (Port 5173) together:

@@ -30,6 +30,20 @@ export function getFileTypeInfo(fileName = '') {
   const ext = fileName.slice(((fileName.lastIndexOf('.') - 1) >>> 0) + 2).toLowerCase();
 
   switch (ext) {
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'webp':
+    case 'gif':
+    case 'bmp':
+    case 'svg':
+      return {
+        category: 'image',
+        label: ext === 'jpeg' ? 'JPG' : ext.toUpperCase(),
+        color: '#ec4899',
+        bgColor: 'rgba(236, 72, 153, 0.15)',
+        icon: 'image',
+      };
     case 'pdf':
       return {
         category: 'pdf',
@@ -45,7 +59,7 @@ export function getFileTypeInfo(fileName = '') {
         category: 'excel',
         label: ext.toUpperCase(),
         color: '#10b981',
-        bgColor: 'rgba(16, 185, 129, 0.15)',
+        bgColor: 'rgba(168, 185, 129, 0.15)',
         icon: 'excel',
       };
     case 'docx':
@@ -99,6 +113,24 @@ export function getFileTypeInfo(fileName = '') {
 }
 
 /**
+ * Read image file as Base64 Data URL for Multimodal Vision AI
+ */
+function parseImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve({
+        text: `[Attached Image: ${file.name}]`,
+        dataUrl: reader.result,
+        isImage: true,
+      });
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Extract text from PDF using PDF.js
  */
 async function parsePdf(file) {
@@ -112,7 +144,7 @@ async function parsePdf(file) {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
     const pageText = textContent.items.map((item) => item.str).join(' ');
-    
+
     fullText += `--- Page ${pageNum} ---\n${pageText}\n\n`;
 
     if (fullText.length > MAX_EXTRACTED_CHARS) {
@@ -121,7 +153,7 @@ async function parsePdf(file) {
     }
   }
 
-  return fullText.trim();
+  return { text: fullText.trim(), dataUrl: null, isImage: false };
 }
 
 /**
@@ -134,10 +166,7 @@ async function parseExcel(file) {
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
-    // Convert sheet to CSV format for clear tabular representation
     const csvContent = XLSX.utils.sheet_to_csv(sheet);
-    
-    // Also extract row count
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
     const rowCount = rows.length;
     const colCount = rows[0]?.length || 0;
@@ -153,7 +182,7 @@ async function parseExcel(file) {
     }
   }
 
-  return extractedContent.trim();
+  return { text: extractedContent.trim(), dataUrl: null, isImage: false };
 }
 
 /**
@@ -168,7 +197,7 @@ async function parseWord(file) {
     text = text.substring(0, MAX_EXTRACTED_CHARS) + '\n\n[Note: Document truncated due to length]';
   }
 
-  return `[Word Document: ${file.name}]\n\n${text.trim()}`;
+  return { text: `[Word Document: ${file.name}]\n\n${text.trim()}`, dataUrl: null, isImage: false };
 }
 
 /**
@@ -182,7 +211,7 @@ function parseText(file) {
       if (content.length > MAX_EXTRACTED_CHARS) {
         content = content.substring(0, MAX_EXTRACTED_CHARS) + '\n\n[Note: File truncated due to length]';
       }
-      resolve(`[File: ${file.name}]\n\n${content.trim()}`);
+      resolve({ text: `[File: ${file.name}]\n\n${content.trim()}`, dataUrl: null, isImage: false });
     };
     reader.onerror = () => reject(new Error('Failed to read file contents'));
     reader.readAsText(file);
@@ -190,7 +219,7 @@ function parseText(file) {
 }
 
 /**
- * Main dispatcher to parse any supported file
+ * Main dispatcher to parse any supported file or image
  */
 export async function extractTextFromFile(file) {
   if (!file) {
@@ -201,6 +230,14 @@ export async function extractTextFromFile(file) {
 
   try {
     switch (ext) {
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+      case 'webp':
+      case 'gif':
+      case 'bmp':
+        return await parseImage(file);
+
       case 'pdf':
         return await parsePdf(file);
 

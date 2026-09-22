@@ -35,8 +35,44 @@ export default async function handler(req) {
       );
     }
 
-    const targetModel = model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b';
+    // Detect if any message contains image data
+    const hasImages = messages.some(
+      (m) => (m.images && Array.isArray(m.images) && m.images.length > 0) ||
+             (Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url'))
+    );
+
+    // Use vision-capable multimodal model when images are present
+    const targetModel = hasImages
+      ? 'qwen/qwen3.8-27b'
+      : (model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b');
+
     const groqApiUrl = process.env.GROQ_API_URL || process.env.VITE_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
+
+    // Format messages payload for Groq
+    const formattedMessages = messages.map((m) => {
+      if (m.images && Array.isArray(m.images) && m.images.length > 0) {
+        const textPart =
+          typeof m.content === 'string' && m.content.trim()
+            ? m.content.trim()
+            : 'Please describe what you see in this image in detail and answer any questions about it.';
+
+        return {
+          role: m.role || 'user',
+          content: [
+            { type: 'text', text: textPart },
+            ...m.images.map((url) => ({
+              type: 'image_url',
+              image_url: { url },
+            })),
+          ],
+        };
+      }
+
+      return {
+        role: m.role || 'user',
+        content: m.content || '',
+      };
+    });
 
     const groqResponse = await fetch(groqApiUrl, {
       method: 'POST',
@@ -46,10 +82,7 @@ export default async function handler(req) {
       },
       body: JSON.stringify({
         model: targetModel,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
+        messages: formattedMessages,
         stream: true,
       }),
     });
