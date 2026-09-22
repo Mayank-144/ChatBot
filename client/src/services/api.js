@@ -1,4 +1,4 @@
-const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5000/api/chat';
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
 
 /**
  * Send chat messages to custom backend API and receive streaming response
