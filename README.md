@@ -1,82 +1,93 @@
-# AI Chatbot (React + Vite)
+# Mayank AI Fullstack Chatbot (React + Node.js Express)
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://expressjs.com/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Groq](https://img.shields.io/badge/Powered%20By-Groq-F05A28)](https://groq.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern, responsive, and minimalist AI Chatbot built using **React**, **Vite**, and **Groq / OpenAI-compatible APIs**. Features a sleek chat timeline, rich Markdown rendering, one-click message copying, and seamless Dark/Light theme toggling.
+A modern, production-ready Fullstack AI Chatbot with **Clean Client-Server Architecture**. Features ChatGPT-style multi-format document analysis (PDF, Excel, Word, CSV, Code, Text), smooth real-time token streaming with line-by-line typewriter animations, and custom backend API routes.
 
 ---
 
-## ✨ Features
+## 🏗️ Project Architecture
 
-- ⚡ **Ultra-Fast AI Inference**: Powered by Groq Cloud APIs (e.g., `openai/gpt-oss-120b`, `llama-3.1-8b-instant`).
-- 🌓 **Dark & Light Mode**: Instant theme switching with persistent `localStorage` support.
-- 📝 **Rich Markdown Rendering**: Formats tables, lists, bold text, blockquotes, and code blocks using `react-markdown` & `remark-gfm`.
-- 📋 **One-Click Message Copy**: Discrete copy button on both user and AI messages with instant visual feedback.
-- 🗑️ **Chat Management**: Quick conversation clearing with confirmation.
-- 🎨 **Pure Vanilla CSS**: Crafted without bloated UI frameworks for maximum speed and control.
-- 📱 **Fully Responsive**: Adapts seamlessly to all desktop and mobile screen sizes.
+The project is structured into two dedicated workspaces:
+
+```
+ChatBot/
+├── client/                      # 🎨 FRONTEND (React 18 + Vite)
+│   ├── public/                  # Static assets
+│   ├── src/
+│   │   ├── components/          # Reusable UI components (Icons, Header, Chat, Input)
+│   │   ├── hooks/               # Custom React hooks (useChat, useFileUpload, useTheme)
+│   │   ├── services/            # API service (communicates with /api/chat)
+│   │   ├── utils/               # File parsing utilities (PDF, Excel, Word, Text)
+│   │   ├── App.jsx              # Main clean React component
+│   │   ├── App.css              # Custom CSS design system
+│   │   └── main.jsx             # React entry point
+│   ├── .env                     # Frontend environment configuration
+│   ├── index.html               # Single page HTML entry
+│   ├── vite.config.js           # Vite build config
+│   └── package.json             # Frontend dependencies
+│
+├── server/                      # ⚙️ BACKEND (Node.js + Express API)
+│   ├── index.js                 # Custom /api/chat & /api/health server
+│   ├── .env                     # Server environment configuration & Groq API key
+│   └── package.json             # Backend dependencies
+│
+├── package.json                 # Monorepo runner (npm run dev)
+├── .gitignore                   # Git ignore for node_modules and .env files
+└── README.md                    # Project documentation
+```
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Key Features
 
-- **Frontend Framework**: [React 18](https://reactjs.org/)
-- **Build Tool**: [Vite](https://vitejs.dev/)
-- **Styling**: Vanilla CSS (Custom Design System with CSS Variables)
-- **Markdown Processing**: `react-markdown` + `remark-gfm`
-- **API**: Groq Cloud / OpenAI-compatible Chat Completions API
+- ⚙️ **Self-Created Backend API**: Node.js Express server running on port 5000 with streaming chat completions and health monitoring.
+- 📎 **ChatGPT-Style File Uploads**: Upload & analyze **PDF**, **Excel (`.xlsx`/`.xls`)**, **Word (`.docx`)**, **CSV**, **JSON**, and **Code** files.
+- 🖋️ **Line-by-Line Typewriter Animation**: Natural reading-speed generation with dynamic line pauses and blinking cursor.
+- 🌓 **Dark & Light Mode**: Instant theme switching with persistent local storage.
+- 📝 **Rich Markdown Rendering**: Tables, lists, syntax blocks, and code styling via `react-markdown` & `remark-gfm`.
+- 📋 **One-Click Copy**: Copy button with visual confirmation.
+- 📱 **Fully Responsive**: Optimized for desktop, tablet, and mobile views.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 How to Run
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/your-username/ai-chatbot.git
-cd ai-chatbot
-```
-
-### 2. Install dependencies
-```bash
-npm install
-```
-
-### 3. Setup Environment Variables
-Create a `.env` file in the project root (you can refer to [`.env.example`](file:///c:/Users/mayank%20jaiswal/OneDrive/Desktop/ChatBot/.env.example)):
-
-```env
-# Groq API Configuration
-VITE_API_URL=https://api.groq.com/openai/v1/chat/completions
-VITE_MODEL=openai/gpt-oss-120b
-VITE_API_KEY=your_groq_api_key_here
-```
-
-> **Note**: Get your free API key from [Groq Console](https://console.groq.com/keys).
-
-### 4. Start Development Server
+### Method 1: Single Command (Recommended)
+From the root folder, run both the backend server (Port 5000) and frontend client (Port 5173) together:
 ```bash
 npm run dev
 ```
-Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+
+### Method 2: Running Individually
+
+**1. Run the Backend Server:**
+```bash
+cd server
+npm install
+npm run dev
+```
+Server runs on: `http://localhost:5000`
+
+**2. Run the Frontend Client:**
+```bash
+cd client
+npm install
+npm run dev
+```
+Frontend runs on: `http://localhost:5173`
 
 ---
 
-## 📦 Production Build
+## 🔗 Custom Backend Endpoints
 
-To create an optimized production build:
-```bash
-npm run build
-```
-
-To preview the production build locally:
-```bash
-npm run preview
-```
+- **Health Check**: `GET http://localhost:5000/api/health`
+- **Chat Streaming API**: `POST http://localhost:5000/api/chat`
 
 ---
 
 ## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+MIT License.

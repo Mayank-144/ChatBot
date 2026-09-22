@@ -2,6 +2,18 @@
 .env
 .env.local
 .env.*.local
+client/.env
+server/.env
+
+# Dependencies & Build Output
+node_modules
+client/node_modules
+server/node_modules
+dist
+client/dist
+server/dist
+dist-ssr
+*.local
 
 # Logs
 logs
@@ -11,12 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-# Dependencies & Build Output
-node_modules
-dist
-dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
