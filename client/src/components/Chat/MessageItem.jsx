@@ -30,7 +30,12 @@ export function MessageItem({ msg, index, copiedIndex, onCopy }) {
           <div className="markdown-render">
             {msg.content ? (
               <>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => <p className="markdown-paragraph">{children}</p>,
+                  }}
+                >
                   {msg.content}
                 </ReactMarkdown>
                 {msg.isStreaming && <span className="streaming-cursor"></span>}

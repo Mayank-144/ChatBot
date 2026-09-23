@@ -5,6 +5,9 @@ export function useFileUpload() {
   const [stagedFiles, setStagedFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const audioInputRef = useRef(null);
   const dragCounterRef = useRef(0);
 
   const processFiles = async (filesList) => {
@@ -29,6 +32,10 @@ export function useFileUpload() {
         const text = typeof parsed === 'object' ? parsed.text : parsed;
         const dataUrl = typeof parsed === 'object' ? parsed.dataUrl : null;
         const isImage = typeof parsed === 'object' ? parsed.isImage : false;
+        const isVideo = typeof parsed === 'object' ? parsed.isVideo : false;
+        const isAudio = typeof parsed === 'object' ? parsed.isAudio : false;
+        const duration = typeof parsed === 'object' ? parsed.duration : '';
+        const transcript = typeof parsed === 'object' ? parsed.transcript : '';
 
         setStagedFiles((prev) =>
           prev.map((f) =>
@@ -39,6 +46,10 @@ export function useFileUpload() {
                   parsedContent: text,
                   dataUrl,
                   isImage,
+                  isVideo,
+                  isAudio,
+                  duration,
+                  transcript,
                 }
               : f
           )
@@ -58,9 +69,10 @@ export function useFileUpload() {
     if (files && files.length > 0) {
       processFiles(files);
     }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    if (videoInputRef.current) videoInputRef.current.value = '';
+    if (audioInputRef.current) audioInputRef.current.value = '';
   };
 
   const handleRemoveStagedFile = (id) => {
@@ -69,9 +81,10 @@ export function useFileUpload() {
 
   const clearStagedFiles = () => {
     setStagedFiles([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    if (videoInputRef.current) videoInputRef.current.value = '';
+    if (audioInputRef.current) audioInputRef.current.value = '';
   };
 
   const handleDragEnter = (e) => {
@@ -112,10 +125,25 @@ export function useFileUpload() {
     fileInputRef.current?.click();
   };
 
+  const openPhotoPicker = () => {
+    photoInputRef.current?.click();
+  };
+
+  const openVideoPicker = () => {
+    videoInputRef.current?.click();
+  };
+
+  const openAudioPicker = () => {
+    audioInputRef.current?.click();
+  };
+
   return {
     stagedFiles,
     isDragging,
     fileInputRef,
+    photoInputRef,
+    videoInputRef,
+    audioInputRef,
     handleFileSelect,
     handleRemoveStagedFile,
     clearStagedFiles,
@@ -124,5 +152,10 @@ export function useFileUpload() {
     handleDragOver,
     handleDrop,
     openFilePicker,
+    openPhotoPicker,
+    openVideoPicker,
+    openAudioPicker,
   };
 }
+
+

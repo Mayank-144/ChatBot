@@ -101,6 +101,34 @@ export function getFileTypeInfo(fileName = '') {
         bgColor: 'rgba(6, 182, 212, 0.15)',
         icon: 'text',
       };
+    case 'mp4':
+    case 'webm':
+    case 'mov':
+    case 'mkv':
+    case 'avi':
+    case 'wmv':
+    case 'flv':
+      return {
+        category: 'video',
+        label: ext.toUpperCase(),
+        color: '#f59e0b',
+        bgColor: 'rgba(245, 158, 11, 0.15)',
+        icon: 'video',
+      };
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+    case 'm4a':
+    case 'aac':
+    case 'flac':
+    case 'wma':
+      return {
+        category: 'audio',
+        label: ext.toUpperCase(),
+        color: '#8b5cf6',
+        bgColor: 'rgba(139, 92, 246, 0.15)',
+        icon: 'audio',
+      };
     default:
       return {
         category: 'file',
@@ -114,7 +142,7 @@ export function getFileTypeInfo(fileName = '') {
 
 /**
  * Resize and compress image using HTML Canvas for optimal LLM Vision processing
- * Prevents "Payload Too Large" errors, reduces latency, and guarantees dimensions >= 64px & <= 1600px
+ * Prevents "Payload Too Large" and "Rate Limit (7000 ITPM)" errors on Groq Cloud
  */
 function parseImage(file) {
   return new Promise((resolve, reject) => {
@@ -134,8 +162,8 @@ function parseImage(file) {
             height = Math.round(height * minScale);
           }
 
-          // Scale down if image is larger than 1600px on any side
-          const MAX_DIM = 1600;
+          // Scale down to max 960px to preserve low token consumption on Groq Vision models
+          const MAX_DIM = 960;
           if (width > MAX_DIM || height > MAX_DIM) {
             if (width > height) {
               height = Math.round((height * MAX_DIM) / width);
@@ -150,27 +178,18 @@ function parseImage(file) {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
 
-          // Handle transparent background for PNG/WEBP
-          if (file.type === 'image/png' || file.name.endsWith('.png')) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressedDataUrl = canvas.toDataURL('image/png');
-            resolve({
-              text: `[Attached Image: ${file.name}]`,
-              dataUrl: compressedDataUrl,
-              isImage: true,
-            });
-          } else {
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, width, height);
-            ctx.drawImage(img, 0, 0, width, height);
-            // Compress JPEG with 0.85 quality
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            resolve({
-              text: `[Attached Image: ${file.name}]`,
-              dataUrl: compressedDataUrl,
-              isImage: true,
-            });
-          }
+          // White background for transparency support
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to optimal 0.80 JPEG for fast streaming and low token cost
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.80);
+          resolve({
+            text: `[Attached Image: ${file.name}]`,
+            dataUrl: compressedDataUrl,
+            isImage: true,
+          });
         } catch (err) {
           console.warn('Canvas compression fallback to raw image:', err);
           resolve({
@@ -187,6 +206,7 @@ function parseImage(file) {
 
       img.src = e.target.result;
     };
+
 
     reader.onerror = () => reject(new Error('Failed to read image file'));
     reader.readAsDataURL(file);
@@ -282,7 +302,176 @@ function parseText(file) {
 }
 
 /**
- * Main dispatcher to parse any supported file or image
+ * Extract keyframe snapshot and metadata from Video using HTML5 Video + Canvas
+ */
+function parseVideo(file) {
+  return new Promise((resolve) => {
+    try {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+
+      const videoUrl = URL.createObjectURL(file);
+      video.src = videoUrl;
+
+      video.onloadedmetadata = () => {
+        // Seek to ~25% timestamp to capture a good representative frame
+        const seekTime = Math.min(Math.max((video.duration || 1) * 0.25, 0.5), 10);
+        video.currentTime = seekTime;
+      };
+
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = video.videoWidth || 640;
+          let height = video.videoHeight || 360;
+
+          // Scale down if larger than 1280px
+          const MAX_DIM = 1280;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            } else {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, width, height);
+
+          const frameDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const durationStr = video.duration ? `${Math.round(video.duration)}s` : 'Unknown duration';
+
+          URL.revokeObjectURL(videoUrl);
+
+          resolve({
+            text: `[Attached Video File: ${file.name} | Duration: ${durationStr} | Resolution: ${video.videoWidth}x${video.videoHeight} | Format: ${file.type || 'video'}]\n(Key visual snapshot from the video is attached for AI analysis. Please describe what is happening in this video.)`,
+            dataUrl: frameDataUrl,
+            isImage: true,
+            isVideo: true,
+            duration: durationStr,
+          });
+        } catch (err) {
+          console.warn('Canvas video frame extraction fallback:', err);
+          URL.revokeObjectURL(videoUrl);
+          resolve({
+            text: `[Attached Video File: ${file.name} | Size: ${formatFileSize(file.size)} | Format: ${file.type || 'video'}]`,
+            dataUrl: null,
+            isImage: false,
+            isVideo: true,
+          });
+        }
+      };
+
+      video.onerror = () => {
+        URL.revokeObjectURL(videoUrl);
+        resolve({
+          text: `[Attached Video File: ${file.name} | Size: ${formatFileSize(file.size)}]`,
+          dataUrl: null,
+          isImage: false,
+          isVideo: true,
+        });
+      };
+    } catch (e) {
+      resolve({
+        text: `[Attached Video File: ${file.name} | Size: ${formatFileSize(file.size)}]`,
+        dataUrl: null,
+        isImage: false,
+        isVideo: true,
+      });
+    }
+  });
+}
+
+/**
+ * Process Audio file and transcribe spoken audio via Whisper backend
+ */
+async function parseAudio(file) {
+  let audioDuration = '';
+
+  // Get duration via HTML5 Audio element
+  try {
+    const audio = new Audio();
+    const objectUrl = URL.createObjectURL(file);
+    audio.src = objectUrl;
+    await new Promise((res) => {
+      audio.onloadedmetadata = () => {
+        audioDuration = `${Math.round(audio.duration || 0)}s`;
+        URL.revokeObjectURL(objectUrl);
+        res();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        res();
+      };
+      setTimeout(res, 800); // 800ms timeout safeguard
+    });
+  } catch {}
+
+  // Convert audio to Base64 to transcribe via Whisper API
+  try {
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const BACKEND_BASE = import.meta.env.VITE_BACKEND_API_URL
+      ? import.meta.env.VITE_BACKEND_API_URL.replace(/\/api\/chat\/?$/, '')
+      : '';
+    const TRANSCRIBE_URL =
+      import.meta.env.VITE_TRANSCRIBE_API_URL ||
+      (BACKEND_BASE ? `${BACKEND_BASE}/api/transcribe` : '/api/transcribe');
+
+    const response = await fetch(TRANSCRIBE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audioBase64: base64Data,
+        mimeType: file.type || 'audio/mpeg',
+        fileName: file.name,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.text && data.text.trim()) {
+        return {
+          text: `[Attached Audio File: ${file.name} | Duration: ${audioDuration || 'N/A'}]\n[Spoken Audio Transcription]: "${data.text.trim()}"\n\n(Note: The user attached an audio file. The above is its transcribed speech/content. Please analyze and answer the user's questions about this audio in detail.)`,
+          dataUrl: null,
+          isImage: false,
+          isAudio: true,
+          transcript: data.text.trim(),
+        };
+      } else {
+        return {
+          text: `[Attached Audio File: ${file.name} | Duration: ${audioDuration || 'N/A'} | Size: ${formatFileSize(file.size)}]\n[Audio Content]: (Audio track/music file. No spoken dialogue detected.)\n\n(Note: The user attached an audio track. Please describe and answer the user's questions about this audio.)`,
+          dataUrl: null,
+          isImage: false,
+          isAudio: true,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Whisper transcription fallback to metadata:', err);
+  }
+
+  return {
+    text: `[Attached Audio File: ${file.name} | Duration: ${audioDuration || 'N/A'} | Size: ${formatFileSize(file.size)}]\n\n(Note: The user attached this audio file. Please answer the user's questions about this audio.)`,
+    dataUrl: null,
+    isImage: false,
+    isAudio: true,
+  };
+}
+
+/**
+ * Main dispatcher to parse any supported file, image, video or audio
  */
 export async function extractTextFromFile(file) {
   if (!file) {
@@ -299,7 +488,26 @@ export async function extractTextFromFile(file) {
       case 'webp':
       case 'gif':
       case 'bmp':
+      case 'svg':
         return await parseImage(file);
+
+      case 'mp4':
+      case 'webm':
+      case 'mov':
+      case 'mkv':
+      case 'avi':
+      case 'wmv':
+      case 'flv':
+        return await parseVideo(file);
+
+      case 'mp3':
+      case 'wav':
+      case 'ogg':
+      case 'm4a':
+      case 'aac':
+      case 'flac':
+      case 'wma':
+        return await parseAudio(file);
 
       case 'pdf':
         return await parsePdf(file);
@@ -336,3 +544,4 @@ export async function extractTextFromFile(file) {
     throw new Error(`Could not parse ${file.name}: ${err.message}`);
   }
 }
+

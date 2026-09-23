@@ -6,17 +6,22 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
  * @param {Function} onChunk - Callback when new text chunk is received
  * @param {Function} onDone - Callback when streaming is finished
  * @param {Function} onError - Callback when an error occurs
+ * @param {AbortSignal} signal - Optional abort signal to cancel request
  */
-export async function sendChatMessage({ messages, onChunk, onDone, onError }) {
+export async function sendChatMessage({ messages, onChunk, onDone, onError, signal }) {
   try {
-    // Determine which messages carry image data. Groq supports max 3 images per request.
-    // For older chat history, we retain text content and strip base64 data to prevent payload bloat.
-    const formattedPayload = messages.map((m, idx, arr) => {
-      const isRecent = idx >= arr.length - 2; // Only attach base64 for the most recent message(s)
+    // If the current request contains images, restrict chat context to the last 4 messages
+    // to strictly prevent exceeding Groq's 7000 input tokens per minute (ITPM) rate limit.
+    const lastMsg = messages[messages.length - 1];
+    const hasCurrentImages = lastMsg && Array.isArray(lastMsg.images) && lastMsg.images.length > 0;
+    const windowedMessages = hasCurrentImages ? messages.slice(-4) : messages.slice(-12);
+
+    const formattedPayload = windowedMessages.map((m, idx, arr) => {
+      const isLatest = idx === arr.length - 1; // Only attach image base64 for the latest message
       return {
         role: m.role,
         content: m.apiPayload || m.content || '',
-        images: isRecent && Array.isArray(m.images) ? m.images.slice(0, 3) : [],
+        images: isLatest && Array.isArray(m.images) ? m.images.slice(0, 2) : [],
       };
     });
 
@@ -28,6 +33,7 @@ export async function sendChatMessage({ messages, onChunk, onDone, onError }) {
       body: JSON.stringify({
         messages: formattedPayload,
       }),
+      signal,
     });
 
     if (!response.ok) {

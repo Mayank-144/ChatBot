@@ -14,6 +14,9 @@ function App() {
     stagedFiles,
     isDragging,
     fileInputRef,
+    photoInputRef,
+    videoInputRef,
+    audioInputRef,
     handleFileSelect,
     handleRemoveStagedFile,
     clearStagedFiles,
@@ -22,6 +25,9 @@ function App() {
     handleDragOver,
     handleDrop,
     openFilePicker,
+    openPhotoPicker,
+    openVideoPicker,
+    openAudioPicker,
   } = useFileUpload();
 
   const {
@@ -31,6 +37,7 @@ function App() {
     loading,
     copiedIndex,
     handleSend,
+    handleStop,
     handleClearChat,
     handleCopy,
   } = useChat();
@@ -54,13 +61,43 @@ function App() {
     >
       <DragOverlay isDragging={isDragging} />
 
-      {/* Hidden File Input */}
+      {/* Hidden Separate Photo/Image Input */}
+      <input
+        type="file"
+        ref={photoInputRef}
+        onChange={handleFileSelect}
+        multiple
+        accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg"
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden Separate Video Input */}
+      <input
+        type="file"
+        ref={videoInputRef}
+        onChange={handleFileSelect}
+        multiple
+        accept="video/*,.mp4,.webm,.mov,.mkv,.avi,.wmv,.flv"
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden Separate Audio Input */}
+      <input
+        type="file"
+        ref={audioInputRef}
+        onChange={handleFileSelect}
+        multiple
+        accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.wma"
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden Separate Document/File Input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelect}
         multiple
-        accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.json,.md,.js,.jsx,.ts,.tsx,.py,.html,.css,.sql,.xml,.yaml,.yml,.log"
+        accept=".pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.json,.md,.js,.jsx,.ts,.tsx,.py,.html,.css,.sql,.xml,.yaml,.yml,.log"
         style={{ display: 'none' }}
       />
 
@@ -84,8 +121,12 @@ function App() {
           stagedFiles={stagedFiles}
           loading={loading}
           onSend={onSend}
+          onStop={handleStop}
           onRemoveFile={handleRemoveStagedFile}
           onOpenFilePicker={openFilePicker}
+          onOpenPhotoPicker={openPhotoPicker}
+          onOpenVideoPicker={openVideoPicker}
+          onOpenAudioPicker={openAudioPicker}
         />
       </div>
     </div>
@@ -93,3 +134,5 @@ function App() {
 }
 
 export default App;
+
+

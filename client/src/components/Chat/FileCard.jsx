@@ -1,24 +1,29 @@
 import { FileIcon } from '../Icons/Icons';
 
 export function FileCard({ fileItem }) {
-  if (fileItem.isImage && fileItem.dataUrl) {
+  // Image or Video Thumbnail Card
+  if ((fileItem.isImage || fileItem.isVideo) && fileItem.dataUrl) {
     return (
       <div className="message-image-card">
-        <img
-          src={fileItem.dataUrl}
-          alt={fileItem.name}
-          className="message-image-preview"
-          onClick={() => window.open(fileItem.dataUrl, '_blank')}
-          title="Click to view full image"
-        />
+        <div className="image-preview-container">
+          <img
+            src={fileItem.dataUrl}
+            alt={fileItem.name}
+            className="message-image-preview"
+            onClick={() => window.open(fileItem.dataUrl, '_blank')}
+            title="Click to view full preview"
+          />
+          {fileItem.isVideo && <div className="video-overlay-badge">🎥 Video Frame</div>}
+        </div>
         <div className="message-image-meta">
           <span className="file-card-name" title={fileItem.name}>{fileItem.name}</span>
-          <span className="file-card-size">{fileItem.size}</span>
+          <span className="file-card-size">{fileItem.duration ? `${fileItem.duration} • ${fileItem.size}` : fileItem.size}</span>
         </div>
       </div>
     );
   }
 
+  // Audio or Document Card
   return (
     <div className="message-file-card">
       <div
@@ -35,9 +40,12 @@ export function FileCard({ fileItem }) {
           <span className="file-badge" style={{ color: fileItem.typeInfo?.color }}>
             {fileItem.typeInfo?.label}
           </span>
-          <span className="file-card-size">{fileItem.size}</span>
+          <span className="file-card-size">
+            {fileItem.duration ? `${fileItem.duration} • ${fileItem.size}` : fileItem.size}
+          </span>
         </div>
       </div>
     </div>
   );
 }
+

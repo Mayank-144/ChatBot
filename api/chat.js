@@ -96,10 +96,14 @@ export default async function handler(req) {
 
     if (!groqResponse.ok) {
       const errData = await groqResponse.json().catch(() => null);
+      let errMsg = errData?.error?.message || `Groq API responded with status ${groqResponse.status}`;
+      if (groqResponse.status === 429) {
+        errMsg = 'Groq free tier rate limit reached. Please wait ~10 seconds and try sending again.';
+      }
       return new Response(
         JSON.stringify({
           error: {
-            message: errData?.error?.message || `Groq API responded with status ${groqResponse.status}`,
+            message: errMsg,
           },
         }),
         {

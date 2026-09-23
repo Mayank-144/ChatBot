@@ -117,9 +117,13 @@ app.post('/api/chat', async (req, res) => {
 
     if (!groqResponse.ok) {
       const errData = await groqResponse.json().catch(() => null);
+      let errMsg = errData?.error?.message || `Groq API responded with status ${groqResponse.status}`;
+      if (groqResponse.status === 429) {
+        errMsg = 'Groq free tier rate limit reached. Please wait ~10 seconds and try sending again.';
+      }
       return res.status(groqResponse.status).json({
         error: {
-          message: errData?.error?.message || `Groq API responded with status ${groqResponse.status}`,
+          message: errMsg,
         },
       });
     }
@@ -151,11 +155,56 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// 3. Audio Transcription Endpoint (Groq Whisper)
+app.post('/api/transcribe', async (req, res) => {
+  try {
+    const { audioBase64, mimeType, fileName } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ error: { message: 'audioBase64 is required' } });
+    }
+
+    const apiKey = process.env.GROQ_API_KEY || process.env.VITE_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: { message: 'GROQ_API_KEY is not configured' } });
+    }
+
+    const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    const blob = new Blob([buffer], { type: mimeType || 'audio/wav' });
+
+    const formData = new FormData();
+    formData.append('file', blob, fileName || 'audio.wav');
+    formData.append('model', 'whisper-large-v3-turbo');
+    formData.append('response_format', 'json');
+
+    const whisperResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!whisperResponse.ok) {
+      const err = await whisperResponse.json().catch(() => null);
+      throw new Error(err?.error?.message || `Whisper API failed with status ${whisperResponse.status}`);
+    }
+
+    const data = await whisperResponse.json();
+    return res.json({ text: data.text });
+  } catch (error) {
+    console.error('Transcription error:', error);
+    return res.status(500).json({ error: { message: error.message || 'Failed to transcribe audio' } });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`=============================================`);
   console.log(`🚀 Mayank AI Backend Server running on port ${PORT}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`💬 Chat API:     http://localhost:${PORT}/api/chat`);
+  console.log(`🎙️ Audio Transcribe: http://localhost:${PORT}/api/transcribe`);
   console.log(`=============================================`);
 });
+

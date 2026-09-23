@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { sendChatMessage } from '../services/api';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,6 +9,9 @@ export function useChat() {
   const [loading, setLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
+  const abortControllerRef = useRef(null);
+  const isStoppedRef = useRef(false);
+
   const handleCopy = (text, index) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -16,9 +19,28 @@ export function useChat() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleStop = () => {
+    isStoppedRef.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoading(false);
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.isStreaming ? { ...msg, isStreaming: false } : msg
+      )
+    );
+  };
+
   const handleClearChat = (e) => {
     e?.preventDefault();
     e?.stopPropagation();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    isStoppedRef.current = true;
     setMessages([]);
     setInput('');
     setLoading(false);
@@ -99,6 +121,10 @@ export function useChat() {
     if (clearStagedFiles) clearStagedFiles();
     setLoading(true);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    isStoppedRef.current = false;
+
     let fullResponseText = '';
     let streamFinished = false;
     let streamError = null;
@@ -108,15 +134,15 @@ export function useChat() {
       let currentIndex = 0;
       let displayedText = '';
 
-      await delay(300); // Initial natural thinking pause
+      await delay(250); // Initial natural thinking pause
 
       while (!streamFinished || currentIndex < fullResponseText.length) {
-        if (streamError) break;
+        if (isStoppedRef.current || streamError) break;
 
         if (currentIndex < fullResponseText.length) {
           const remaining = fullResponseText.length - currentIndex;
           let step = 1;
-          let pauseMs = 20;
+          let pauseMs = 18;
 
           if (remaining > 300) {
             step = Math.min(remaining, 5);
@@ -126,21 +152,23 @@ export function useChat() {
             pauseMs = 14;
           } else {
             step = 1;
-            pauseMs = 20;
+            pauseMs = 18;
           }
 
           if (fullResponseText[currentIndex] === '\n') {
-            pauseMs = 50;
+            pauseMs = 45;
           }
 
           currentIndex = Math.min(fullResponseText.length, currentIndex + step);
           displayedText = fullResponseText.slice(0, currentIndex);
 
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMsgId ? { ...msg, content: displayedText, isStreaming: true } : msg
-            )
-          );
+          if (!isStoppedRef.current) {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId ? { ...msg, content: displayedText, isStreaming: true } : msg
+              )
+            );
+          }
 
           await delay(pauseMs);
         } else {
@@ -148,7 +176,7 @@ export function useChat() {
         }
       }
 
-      if (!streamError) {
+      if (!streamError && !isStoppedRef.current) {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMsgId
@@ -166,13 +194,20 @@ export function useChat() {
     // Call custom backend API
     await sendChatMessage({
       messages: updatedMessages,
+      signal: abortController.signal,
       onChunk: (chunk) => {
-        fullResponseText += chunk;
+        if (!isStoppedRef.current) {
+          fullResponseText += chunk;
+        }
       },
       onDone: () => {
         streamFinished = true;
       },
       onError: (err) => {
+        if (err.name === 'AbortError' || isStoppedRef.current) {
+          streamFinished = true;
+          return;
+        }
         streamError = err;
         streamFinished = true;
         setMessages((prev) =>
@@ -196,7 +231,9 @@ export function useChat() {
     loading,
     copiedIndex,
     handleSend,
+    handleStop,
     handleClearChat,
     handleCopy,
   };
 }
+
