@@ -2,7 +2,7 @@
   "name": "ai-chatbot",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev": "npx -y concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "cd client && npm install && npm run build",
     "server": "npm --prefix server run dev",
     "client": "npm --prefix client run dev"
