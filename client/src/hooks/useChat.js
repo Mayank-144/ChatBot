@@ -191,10 +191,22 @@ export function useChat() {
       }
     })();
 
+    let capturedTools = [];
+
     // Call custom backend API
     await sendChatMessage({
       messages: updatedMessages,
       signal: abortController.signal,
+      onToolsUsed: (tools) => {
+        if (Array.isArray(tools) && tools.length > 0) {
+          capturedTools = Array.from(new Set([...capturedTools, ...tools]));
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsgId ? { ...msg, toolsUsed: capturedTools } : msg
+            )
+          );
+        }
+      },
       onChunk: (chunk) => {
         if (!isStoppedRef.current) {
           fullResponseText += chunk;

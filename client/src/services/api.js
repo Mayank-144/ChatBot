@@ -8,7 +8,7 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
  * @param {Function} onError - Callback when an error occurs
  * @param {AbortSignal} signal - Optional abort signal to cancel request
  */
-export async function sendChatMessage({ messages, onChunk, onDone, onError, signal }) {
+export async function sendChatMessage({ messages, onChunk, onToolsUsed, onDone, onError, signal }) {
   try {
     // If the current request contains images, restrict chat context to the last 4 messages
     // to strictly prevent exceeding Groq's 7000 input tokens per minute (ITPM) rate limit.
@@ -63,6 +63,9 @@ export async function sendChatMessage({ messages, onChunk, onDone, onError, sign
           if (trimmed.startsWith('data: ')) {
             try {
               const parsed = JSON.parse(trimmed.slice(6));
+              if (parsed.toolsUsed && onToolsUsed) {
+                onToolsUsed(parsed.toolsUsed);
+              }
               const delta = parsed.choices?.[0]?.delta?.content || '';
               if (delta && onChunk) {
                 onChunk(delta);
@@ -77,6 +80,9 @@ export async function sendChatMessage({ messages, onChunk, onDone, onError, sign
       if (buffer && buffer.startsWith('data: ')) {
         try {
           const parsed = JSON.parse(buffer.slice(6));
+          if (parsed.toolsUsed && onToolsUsed) {
+            onToolsUsed(parsed.toolsUsed);
+          }
           const delta = parsed.choices?.[0]?.delta?.content || '';
           if (delta && onChunk) {
             onChunk(delta);
@@ -87,6 +93,9 @@ export async function sendChatMessage({ messages, onChunk, onDone, onError, sign
       if (onDone) onDone();
     } else {
       const data = await response.json();
+      if (data.toolsUsed && onToolsUsed) {
+        onToolsUsed(data.toolsUsed);
+      }
       const fullContent = data.choices?.[0]?.message?.content || '';
       if (onChunk) onChunk(fullContent);
       if (onDone) onDone();

@@ -24,6 +24,18 @@ export function MessageItem({ msg, index, copiedIndex, onCopy }) {
         </div>
       )}
 
+      {/* Tool Used Badges */}
+      {msg.toolsUsed && msg.toolsUsed.length > 0 && (
+        <div className="message-tools-badges">
+          {msg.toolsUsed.map((tool, tIdx) => (
+            <span key={tIdx} className="tool-used-badge">
+              <span className="tool-icon">⚡</span>
+              Tool used: <strong>{tool}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Message Body */}
       <div className="message-body">
         {msg.role === 'assistant' ? (

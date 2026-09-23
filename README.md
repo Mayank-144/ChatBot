@@ -1,28 +1,29 @@
-# Mayank AI Fullstack Chatbot (React + Node.js Express + Multimodal Vision & Audio)
+# Mayank AI Fullstack Chatbot (React + Express + MCP Server + Multimodal Vision & Audio)
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://expressjs.com/)
+[![MCP](https://img.shields.io/badge/Protocol-MCP%20SDK-purple?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Groq](https://img.shields.io/badge/AI-Groq%20Cloud-F55036?logo=fastapi&logoColor=white)](https://groq.com/)
 [![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern, production-grade Fullstack AI Chatbot featuring a **Custom Client-Server Architecture**, **Multimodal Vision Intelligence**, and **Groq Whisper Audio Transcription**. 
+A production-grade, Fullstack AI Chatbot featuring **Model Context Protocol (MCP)** tool execution, **Custom Client-Server Architecture**, **Multimodal Vision Intelligence**, and **Groq Whisper Audio Transcription**. 
 
-Built with ChatGPT-inspired aesthetics, smooth real-time Server-Sent Events (SSE) streaming, typewriter animations with parallel inline cursor tracking, and support for multi-format document analysis, image recognition, video frame inspection, and voice transcription.
+Built with ChatGPT-inspired aesthetics, real-time Server-Sent Events (SSE) streaming, parallel inline typing cursors, multi-format document analysis, image recognition, video frame inspection, and autonomous multi-turn tool calling.
 
 ---
 
 ## 🏗️ Project Architecture
 
-The repository is organized into a clean monorepo with dedicated frontend, backend, and serverless edge layers:
+The repository is organized into a clean, modular structure:
 
 ```
 ChatBot/
-├── client/                      # 🎨 FRONTEND WORKSPACE (React 18 + Vite)
+├── client/                      # 🎨 FRONTEND (React 18 + Vite)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Chat/            # MessageList, MessageItem, FileCard, EmptyState
+│   │   │   ├── Chat/            # MessageList, MessageItem (with Tool Badges), FileCard, EmptyState
 │   │   │   ├── Header/          # Header, Theme Toggle, Clear Chat
 │   │   │   ├── Icons/           # Scalable SVG Icon library
 │   │   │   └── Input/           # ChatInput, StagedFiles, DragOverlay
@@ -31,7 +32,7 @@ ChatBot/
 │   │   │   ├── useFileUpload.js # 4-tier attachment picker & drag-and-drop
 │   │   │   └── useTheme.js      # Dark/Light theme state
 │   │   ├── services/
-│   │   │   └── api.js           # API streaming fetcher & SSE reader
+│   │   │   └── api.js           # API streaming fetcher & SSE reader (Tool events)
 │   │   ├── utils/
 │   │   │   └── fileParser.js    # Canvas, PDF.js, SheetJS, Mammoth & Whisper parsers
 │   │   ├── App.jsx              # Main React Root Component
@@ -41,21 +42,55 @@ ChatBot/
 │   ├── vite.config.js           # Vite build & backend proxy config
 │   └── package.json             # Frontend dependencies
 │
-├── server/                      # ⚙️ BACKEND WORKSPACE (Node.js + Express API)
-│   ├── index.js                 # Express server with /api/chat, /api/transcribe, /api/health
+├── server/                      # ⚙️ BACKEND (Node.js + Express API + MCP Client)
+│   ├── index.js                 # Express server with /api/chat, MCP tool execution loop, Whisper API
 │   ├── .env                     # Server environment configuration & GROQ_API_KEY
-│   └── package.json             # Backend dependencies
+│   └── package.json             # Backend dependencies (@modelcontextprotocol/sdk, express, cors)
 │
-├── api/                         # ⚡ VERCEL SERVERLESS EDGE FUNCTIONS (Production)
+├── mcp-server/                  # 🔌 MODEL CONTEXT PROTOCOL (MCP) SERVER
+│   ├── index.js                 # MCP Server with Stdio transport & Tools (get_time, calculator)
+│   ├── test-client.js           # Automated client tester for MCP tools
+│   ├── package.json             # MCP dependencies (@modelcontextprotocol/sdk, zod)
+│   └── README.md                # MCP configuration & inspector guide
+│
+├── api/                         # ⚡ VERCEL SERVERLESS EDGE FUNCTIONS (Cloud Production)
 │   ├── chat.js                  # Edge streaming /api/chat endpoint
 │   ├── transcribe.js            # Edge Whisper /api/transcribe endpoint
 │   └── health.js                # Edge /api/health endpoint
 │
 ├── vercel.json                  # Vercel deployment configuration
 ├── package.json                 # Monorepo runner (npm run dev)
-├── .gitignore                   # Ignored files (node_modules, .env)
 └── README.md                    # Project documentation
 ```
+
+---
+
+## 🛠️ Model Context Protocol (MCP) Integration
+
+The backend implements the official **Model Context Protocol** standard via `@modelcontextprotocol/sdk`:
+
+```
+User Prompt ──> Backend (/api/chat) ──> Groq Model (Tools Definition)
+                     │                            │
+                     │ (Tool Call Requested)       │
+                     ▼                            │
+             MCP Server (Stdio) ──────────────────┘
+             ├─ get_time (Date/Time/Timezone)
+             └─ calculator (Arithmetic operations)
+                     │
+             (Accurate Result)
+                     ▼
+             Groq Final Stream ──> Frontend UI with "⚡ Tool used: <name>" Badge
+```
+
+### Registered MCP Tools:
+1. **`get_time`**: Returns real-time system date, time, timestamp, and local timezone.
+2. **`calculator`**: Performs arithmetic operations (`add`, `subtract`, `multiply`, `divide`) with division-by-zero protection.
+
+### Visual Tool Badges:
+When the model executes an MCP tool to answer a query, the frontend dynamically displays a badge:
+- `⚡ Tool used: calculator`
+- `⚡ Tool used: get_time`
 
 ---
 
@@ -68,7 +103,7 @@ ChatBot/
 * 📄 **Documents & Files**: Client-side parsing of **PDF** (`pdfjs-dist`), **Excel** (`xlsx`), **Word** (`mammoth`), **CSV**, **JSON**, **Markdown**, and **Code** files.
 
 ### 2. 💬 ChatGPT-Style User Experience
-* ➕ **4-Tier Attach Dropdown**: Clean separate buttons for **Photos**, **Videos**, **Audios**, and **Files** (no confusing slashes/obliques).
+* ➕ **4-Tier Attach Dropdown**: Clean separate buttons for **Photos**, **Videos**, **Audios**, and **Files**.
 * ⏹ **Combined Send / Stop Button**: Seamlessly toggle between `Send ↵` and `⏹ Stop` with instant request cancellation via `AbortController`.
 * 🟢 **Parallel Inline Streaming Cursor**: Blinking typewriter cursor tracks directly at the tip of the last character in real time.
 * 🌓 **Dark & Light Mode**: Instant smooth theme switching.
@@ -76,13 +111,16 @@ ChatBot/
 
 ---
 
-## 🔗 Custom Backend Endpoints
+## 🔗 Backend Endpoints
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
 | `/api/health` | `GET` | Health check & active model status |
-| `/api/chat` | `POST` | Chat completions with real-time SSE streaming & Vision routing |
+| `/api/chat` | `POST` | Chat completions with MCP tool execution & SSE streaming |
 | `/api/transcribe` | `POST` | Whisper speech-to-text audio transcription |
+| `/api/mcp/tools` | `GET` | Returns list of connected MCP tools |
+| `/api/mcp/time` | `GET` | Direct test endpoint for `get_time` tool |
+| `/api/mcp/calculate` | `GET` | Direct test endpoint for `calculator` tool (`?a=25&b=4&op=multiply`) |
 
 ---
 
@@ -120,7 +158,7 @@ npm run dev
 ```bash
 cd server
 npm install
-npm run dev
+npm start
 ```
 
 **Frontend Client (Port 5173):**
@@ -130,16 +168,13 @@ npm install
 npm run dev
 ```
 
+**Test MCP Server Interactively in Browser:**
+```bash
+cd mcp-server
+npx @modelcontextprotocol/inspector node index.js
+```
+
 Open your browser at `http://localhost:5173` to start chatting!
-
----
-
-## ☁️ Deployment (Vercel)
-
-1. Push your repository to GitHub.
-2. Import the project in [Vercel](https://vercel.com/).
-3. Add `GROQ_API_KEY` to **Project Settings → Environment Variables**.
-4. Click **Deploy**. Vercel will automatically configure the edge functions in `/api` and host the frontend.
 
 ---
 

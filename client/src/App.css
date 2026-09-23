@@ -358,6 +358,51 @@
   font-style: italic;
 }
 
+/* Tool Used Badges */
+.message-tools-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 6px 0;
+}
+
+.tool-used-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(4px);
+  animation: toolBadgeFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tool-used-badge .tool-icon {
+  font-size: 0.82rem;
+}
+
+.tool-used-badge strong {
+  color: #34d399;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@keyframes toolBadgeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .message-body {
   font-size: 0.95rem;
   line-height: 1.65;
