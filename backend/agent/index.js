@@ -29,7 +29,7 @@ Guidelines:
  */
 export function getGroqModel(options = {}) {
   const apiKey = options.apiKey || process.env.GROQ_API_KEY || process.env.VITE_API_KEY;
-  const modelName = options.modelName || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'llama-3.3-70b-versatile';
+  const modelName = options.modelName || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b';
   const temperature = options.temperature ?? 0.3;
 
   if (!apiKey) {
