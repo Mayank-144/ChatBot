@@ -2,7 +2,7 @@ export const config = {
   runtime: 'edge',
 };
 
-// Available Tools for Groq Model
+// Available Tools for Groq Model on Vercel Serverless
 const TOOLS = [
   {
     type: 'function',
@@ -19,7 +19,8 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'calculator',
-      description: 'Performs basic arithmetic operations: add, subtract, multiply, or divide on two numbers',
+      description:
+        'Performs basic arithmetic operations: add, subtract, multiply, or divide on two numbers',
       parameters: {
         type: 'object',
         properties: {
@@ -35,10 +36,46 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_weather',
+      description:
+        'Fetches real-time weather information (temperature, condition, humidity, wind speed) for any city around the world.',
+      parameters: {
+        type: 'object',
+        properties: {
+          city: {
+            type: 'string',
+            description: 'The city name for weather lookup, e.g. "Mumbai", "London", "Tokyo"',
+          },
+        },
+        required: ['city'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'wikipedia_search',
+      description:
+        'Searches Wikipedia for accurate general knowledge, encyclopedia summaries, historical facts, and biographical information.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The entity or topic to look up on Wikipedia (e.g. "Albert Einstein", "Artificial Intelligence")',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
 ];
 
 // Tool Executor on Vercel Serverless
-function executeTool(name, args) {
+async function executeTool(name, args) {
   if (name === 'get_time') {
     const now = new Date();
     return JSON.stringify({
@@ -73,6 +110,107 @@ function executeTool(name, args) {
         return JSON.stringify({ isError: true, error: `Unsupported operation: ${operation}` });
     }
     return JSON.stringify({ a, b, operation, result });
+  }
+
+  if (name === 'get_weather') {
+    const city = (args?.city || '').trim();
+    if (!city) {
+      return JSON.stringify({ error: 'City name is required' });
+    }
+
+    const apiKey = process.env.OPENWEATHER_API_KEY;
+    if (apiKey) {
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(
+          city
+        )}&units=metric&appid=${apiKey}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const temp = Math.round(data.main?.temp ?? 0);
+          const feelsLike = Math.round(data.main?.feels_like ?? temp);
+          const condition = data.weather?.[0]?.description || 'Clear';
+          const humidity = data.main?.humidity ?? 0;
+          const windSpeed = data.wind?.speed ? Math.round(data.wind.speed * 3.6) : 0;
+          const country = data.sys?.country || '';
+
+          return JSON.stringify({
+            location: `${data.name}${country ? ', ' + country : ''}`,
+            temperature: `${temp}°C`,
+            feelsLike: `${feelsLike}°C`,
+            condition: condition.charAt(0).toUpperCase() + condition.slice(1),
+            humidity: `${humidity}%`,
+            windSpeed: `${windSpeed} km/h`,
+          });
+        }
+      } catch (e) {
+        // Fall through to fallback
+      }
+    }
+
+    const simulatedTemp = 24 + Math.floor(Math.sin(city.length) * 6);
+    return JSON.stringify({
+      location: city,
+      temperature: `${simulatedTemp}°C`,
+      feelsLike: `${simulatedTemp + 1}°C`,
+      condition: 'Partly Cloudy (Set OPENWEATHER_API_KEY for live data)',
+      humidity: '58%',
+      windSpeed: '14 km/h',
+    });
+  }
+
+  if (name === 'wikipedia_search') {
+    const query = (args?.query || '').trim();
+    if (!query) {
+      return JSON.stringify({ error: 'Search query is required' });
+    }
+
+    try {
+      const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
+        query
+      )}&format=json&utf8=1&srlimit=3`;
+      const searchRes = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'MayankAIChatbot/1.0 (https://github.com/Mayank-144/ChatBot)',
+        },
+      });
+
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        const results = searchData?.query?.search || [];
+        if (results.length > 0) {
+          const topTitle = results[0].title;
+          const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
+            topTitle.replace(/ /g, '_')
+          )}`;
+          const summaryRes = await fetch(summaryUrl, {
+            headers: {
+              'User-Agent': 'MayankAIChatbot/1.0 (https://github.com/Mayank-144/ChatBot)',
+            },
+          });
+
+          if (summaryRes.ok) {
+            const summaryData = await summaryRes.json();
+            return JSON.stringify({
+              title: summaryData.title || topTitle,
+              description: summaryData.description || '',
+              summary: (summaryData.extract || '').slice(0, 1000),
+              url: summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topTitle)}`,
+            });
+          }
+
+          const snippet = results[0].snippet ? results[0].snippet.replace(/<[^>]*>/g, '') : '';
+          return JSON.stringify({
+            title: topTitle,
+            summary: snippet,
+            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topTitle)}`,
+          });
+        }
+      }
+      return JSON.stringify({ message: `No Wikipedia articles found for "${query}".` });
+    } catch (e) {
+      return JSON.stringify({ error: `Wikipedia lookup failed: ${e.message}` });
+    }
   }
 
   return JSON.stringify({ error: `Tool '${name}' is not recognized` });
@@ -113,16 +251,20 @@ export default async function handler(req) {
 
     // Detect if any message contains image data
     const hasImages = messages.some(
-      (m) => (m.images && Array.isArray(m.images) && m.images.length > 0) ||
+      (m) =>
+        (m.images && Array.isArray(m.images) && m.images.length > 0) ||
         (Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url'))
     );
 
     // Use vision-capable multimodal model when images are present
     const targetModel = hasImages
       ? 'qwen/qwen3.8-27b'
-      : (model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b');
+      : model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b';
 
-    const groqApiUrl = process.env.GROQ_API_URL || process.env.VITE_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
+    const groqApiUrl =
+      process.env.GROQ_API_URL ||
+      process.env.VITE_API_URL ||
+      'https://api.groq.com/openai/v1/chat/completions';
 
     // Count total images and enforce max 3 images limit for Groq
     let totalImagesCount = 0;
@@ -153,7 +295,10 @@ export default async function handler(req) {
 
         return {
           role: m.role || 'user',
-          content: typeof m.content === 'string' && m.content.trim() ? m.content.trim() : (m.content || 'Hello'),
+          content:
+            typeof m.content === 'string' && m.content.trim()
+              ? m.content.trim()
+              : m.content || 'Hello',
         };
       });
 
@@ -211,12 +356,12 @@ export default async function handler(req) {
             toolArgs =
               typeof toolCall.function?.arguments === 'string'
                 ? JSON.parse(toolCall.function.arguments)
-                : (toolCall.function?.arguments || {});
+                : toolCall.function?.arguments || {};
           } catch (e) {
             toolArgs = {};
           }
 
-          const toolResult = executeTool(toolName, toolArgs);
+          const toolResult = await executeTool(toolName, toolArgs);
 
           conversationMessages.push({
             role: 'tool',
@@ -268,15 +413,17 @@ export default async function handler(req) {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
     });
   } catch (error) {
     console.error('Vercel /api/chat error:', error);
-    return new Response(JSON.stringify({ error: { message: error.message || 'Internal Server Error' } }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: { message: error.message || 'Internal Server Error' } }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
-
