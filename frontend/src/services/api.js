@@ -87,7 +87,7 @@ export async function sendChatMessage({ messages, onChunk, onToolsUsed, onDone, 
           if (delta && onChunk) {
             onChunk(delta);
           }
-        } catch {}
+        } catch { }
       }
 
       if (onDone) onDone();

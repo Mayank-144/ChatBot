@@ -181,10 +181,10 @@ export function useChat() {
           prev.map((msg) =>
             msg.id === assistantMsgId
               ? {
-                  ...msg,
-                  content: displayedText || fullResponseText || 'No response generated.',
-                  isStreaming: false,
-                }
+                ...msg,
+                content: displayedText || fullResponseText || 'No response generated.',
+                isStreaming: false,
+              }
               : msg
           )
         );

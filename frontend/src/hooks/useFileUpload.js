@@ -41,16 +41,16 @@ export function useFileUpload() {
           prev.map((f) =>
             f.id === item.id
               ? {
-                  ...f,
-                  status: 'ready',
-                  parsedContent: text,
-                  dataUrl,
-                  isImage,
-                  isVideo,
-                  isAudio,
-                  duration,
-                  transcript,
-                }
+                ...f,
+                status: 'ready',
+                parsedContent: text,
+                dataUrl,
+                isImage,
+                isVideo,
+                isAudio,
+                duration,
+                transcript,
+              }
               : f
           )
         );

@@ -60,7 +60,7 @@ app.post('/api/chat', async (req, res) => {
   // Detect if any message contains image data
   const hasImages = messages.some(
     (m) => (m.images && Array.isArray(m.images) && m.images.length > 0) ||
-           (Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url'))
+      (Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url'))
   );
 
   // Use vision-capable multimodal model when images are present

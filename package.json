@@ -2,10 +2,12 @@
   "name": "ai-chatbot",
   "private": true,
   "scripts": {
-    "dev": "npx -y concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
-    "build": "cd client && npm install && npm run build",
-    "server": "npm --prefix server run dev",
-    "client": "npm --prefix client run dev"
+    "dev": "npx -y concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "build": "cd frontend && npm install && npm run build",
+    "backend": "npm --prefix backend run dev",
+    "frontend": "npm --prefix frontend run dev",
+    "server": "npm --prefix backend run dev",
+    "client": "npm --prefix frontend run dev"
   },
   "dependencies": {
     "concurrently": "^10.0.5"
