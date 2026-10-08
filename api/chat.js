@@ -142,6 +142,8 @@ async function executeTool(name, args) {
             humidity: `${humidity}%`,
             windSpeed: `${windSpeed} km/h`,
           });
+        }
+
         if (res.status === 401) {
           const simulatedTemp = 24 + Math.floor(Math.sin(city.length) * 5);
           return JSON.stringify({
