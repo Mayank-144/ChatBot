@@ -180,6 +180,7 @@ app.post('/api/chat', async (req, res) => {
     res.flushHeaders?.();
 
     const toolsUsed = [];
+    let streamedAnyToken = false;
 
     const agentResult = await runAgent({
       input: userInput,
@@ -193,6 +194,7 @@ app.post('/api/chat', async (req, res) => {
         }
       },
       onToken: (chunk) => {
+        streamedAnyToken = true;
         // Stream token to frontend in OpenAI SSE format
         res.write(
           `data: ${JSON.stringify({
@@ -202,23 +204,21 @@ app.post('/api/chat', async (req, res) => {
       },
     });
 
-    // If no tokens were streamed during execution, write the final output
-    if (toolsUsed.length > 0 && res.writable) {
-      res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
-    }
-
-    const finalAnswer = agentResult.output;
-    if (finalAnswer && !res.writableEnded) {
-      // Chunk output smoothly for typing experience if it was buffered
-      const chunkSize = 20;
-      for (let i = 0; i < finalAnswer.length; i += chunkSize) {
-        const piece = finalAnswer.slice(i, i + chunkSize);
-        res.write(
-          `data: ${JSON.stringify({
-            choices: [{ delta: { content: piece }, finish_reason: null }],
-          })}\n\n`
-        );
-        await new Promise((resolve) => setTimeout(resolve, 10));
+    // If no tokens were streamed in real-time during execution, write the final output
+    if (!streamedAnyToken) {
+      const finalAnswer = agentResult.output;
+      if (finalAnswer && !res.writableEnded) {
+        // Chunk output smoothly for typing experience if it was buffered
+        const chunkSize = 20;
+        for (let i = 0; i < finalAnswer.length; i += chunkSize) {
+          const piece = finalAnswer.slice(i, i + chunkSize);
+          res.write(
+            `data: ${JSON.stringify({
+              choices: [{ delta: { content: piece }, finish_reason: null }],
+            })}\n\n`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
       }
     }
 

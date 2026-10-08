@@ -314,7 +314,17 @@ export default async function handler(req) {
         };
       });
 
-    let conversationMessages = [...formattedMessages];
+    const hasSystem = formattedMessages.some((m) => m.role === 'system');
+    let conversationMessages = hasSystem
+      ? [...formattedMessages]
+      : [
+          {
+            role: 'system',
+            content:
+              'You are Mayank AI, a modern and helpful fullstack AI assistant. For calculations and math questions, present the result simply and clearly in standard natural text (e.g. "2 + 5 = 7" or "2 + 50 = 52"). Do not use LaTeX syntax like \\mathbf{}.',
+          },
+          ...formattedMessages,
+        ];
     let finalContent = '';
     const toolsUsed = [];
     const maxToolIterations = 5;
