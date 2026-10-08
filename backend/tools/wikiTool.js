@@ -7,8 +7,19 @@ import { z } from 'zod';
 const wikiSchema = z.object({
   query: z
     .string()
-    .describe('The search query or entity name to look up on Wikipedia (e.g. "Quantum Computing", "Alan Turing", "Taj Mahal")'),
+    .describe('The search query or entity name to look up on Wikipedia (e.g. "Quantum Computing", "Alan Turing", "Taj Mahal", "Mahakaleshwar")'),
 });
+
+/**
+ * Clean search query by removing conversational filler words.
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeSearchQuery(text) {
+  return (text || '')
+    .replace(/(?:kya hai|kya h|kaun hai|ke bare mein|batao|what is|tell me about|who is|who was)/gi, '')
+    .trim();
+}
 
 /**
  * Searches Wikipedia using the official REST API and returns a concise factual summary.
@@ -16,14 +27,15 @@ const wikiSchema = z.object({
  * @returns {Promise<string>}
  */
 async function searchWikipedia({ query }) {
-  const cleanQuery = (query || '').trim();
+  const rawQuery = (query || '').trim();
+  const cleanQuery = sanitizeSearchQuery(rawQuery) || rawQuery;
 
   if (!cleanQuery) {
     return 'Error: A search query must be provided for Wikipedia lookup.';
   }
 
   try {
-    // 1. First, search for matching page titles using Wikipedia search API
+    // 1. Search for matching page titles using Wikipedia search API
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
       cleanQuery
     )}&format=json&utf8=1&srlimit=3`;
@@ -42,7 +54,7 @@ async function searchWikipedia({ query }) {
     const searchResults = searchData?.query?.search || [];
 
     if (searchResults.length === 0) {
-      return `No Wikipedia articles found for query: "${cleanQuery}".`;
+      return `No Wikipedia articles found for "${cleanQuery}".`;
     }
 
     // 2. Fetch the summary for the top matching page
@@ -67,7 +79,7 @@ async function searchWikipedia({ query }) {
       return JSON.stringify({
         title,
         description,
-        summary: extract.slice(0, 1000), // Keep concise for token efficiency
+        summary: extract.slice(0, 450), // Concise for token efficiency & fast Groq inference
         url: pageUrl,
       });
     }
@@ -76,7 +88,7 @@ async function searchWikipedia({ query }) {
     const snippet = searchResults[0].snippet ? searchResults[0].snippet.replace(/<[^>]*>/g, '') : '';
     return JSON.stringify({
       title: topTitle,
-      summary: snippet,
+      summary: snippet.slice(0, 350),
       url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topTitle)}`,
     });
   } catch (error) {
@@ -90,7 +102,7 @@ async function searchWikipedia({ query }) {
 export const wikiTool = tool(searchWikipedia, {
   name: 'wikipedia_search',
   description:
-    'Searches Wikipedia for accurate general knowledge, encyclopedia summaries, historical facts, scientific concepts, and biographical information.',
+    'Searches Wikipedia for accurate general knowledge, encyclopedia summaries, historical facts, and scientific or biographical information.',
   schema: wikiSchema,
 });
 
