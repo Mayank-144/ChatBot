@@ -7,13 +7,15 @@ export function EmptyState() {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
         </div>
-        <h2>What can I help you analyze today?</h2>
-        <p>Upload images, documents (PDF, Excel, Word, CSV), or type a message below.</p>
+        <h2>What would you like to explore today?</h2>
+        <p>Ask real-time questions, run math through MCP tools, explore Wikipedia, check live weather, or upload documents and images.</p>
         <div className="quick-features-row">
-          <span className="feature-pill">🖼️ Image & Vision Analysis</span>
-          <span className="feature-pill">📄 PDF Analysis</span>
-          <span className="feature-pill">📊 Excel & CSV Insights</span>
-          <span className="feature-pill">📝 Word & Code Summaries</span>
+          <span className="feature-pill">🌤️ Live Weather Lookup</span>
+          <span className="feature-pill">📚 Wikipedia Knowledge</span>
+          <span className="feature-pill">🧮 MCP Calculator</span>
+          <span className="feature-pill">🕒 Real-Time Clock</span>
+          <span className="feature-pill">🖼️ Vision & Image QA</span>
+          <span className="feature-pill">📄 PDF, Excel & Docs</span>
         </div>
       </div>
     </div>

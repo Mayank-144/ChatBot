@@ -3,12 +3,31 @@ import remarkGfm from 'remark-gfm';
 import { CopyIcon, CheckIcon } from '../Icons/Icons';
 import { FileCard } from './FileCard';
 
+const TOOL_CONFIG = {
+  get_weather: {
+    icon: '🌤️',
+    label: 'Live Weather',
+  },
+  wikipedia_search: {
+    icon: '📚',
+    label: 'Wikipedia',
+  },
+  calculator: {
+    icon: '🧮',
+    label: 'MCP Calculator',
+  },
+  get_time: {
+    icon: '🕒',
+    label: 'MCP Time',
+  },
+};
+
 export function MessageItem({ msg, index, copiedIndex, onCopy }) {
   return (
     <div className={`message-item ${msg.role}`}>
       <div className="message-meta">
         <span className={`sender-name ${msg.role}`}>
-          {msg.role === 'user' ? 'User' : '🤖 Mayank'}
+          {msg.role === 'user' ? 'User' : '🤖 Mayank AI'}
         </span>
         {msg.isStreaming && !msg.content && (
           <span className="message-status">thinking...</span>
@@ -27,12 +46,18 @@ export function MessageItem({ msg, index, copiedIndex, onCopy }) {
       {/* Tool Used Badges */}
       {msg.toolsUsed && msg.toolsUsed.length > 0 && (
         <div className="message-tools-badges">
-          {msg.toolsUsed.map((tool, tIdx) => (
-            <span key={tIdx} className="tool-used-badge">
-              <span className="tool-icon">⚡</span>
-              Tool used: <strong>{tool}</strong>
-            </span>
-          ))}
+          {msg.toolsUsed.map((tool, tIdx) => {
+            const config = TOOL_CONFIG[tool] || {
+              icon: '⚡',
+              label: `Tool: ${tool}`,
+            };
+            return (
+              <span key={tIdx} className={`tool-used-badge tool-badge-${tool}`}>
+                <span className="tool-icon">{config.icon}</span>
+                <span className="tool-name">{config.label}</span>
+              </span>
+            );
+          })}
         </div>
       )}
 
