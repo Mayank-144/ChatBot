@@ -9,7 +9,7 @@
 [![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Short Description:** An autonomous full-stack AI ChatBot built with React 18, Express, LangChain ReAct Agents, and Model Context Protocol (MCP). Features real-time tool calling (Live Weather, Wikipedia, MCP Calculator & Clock), Multimodal Vision, and Groq Whisper audio transcription.
+> **Overview:** An autonomous full-stack AI ChatBot built with React 18, Express, LangChain ReAct Agents, and Model Context Protocol (MCP). Features real-time autonomous tool execution (Live Weather, Wikipedia, MCP Calculator & Clock), Multimodal Vision, and Groq Whisper audio transcription.
 
 ---
 
@@ -35,8 +35,8 @@ ChatBot/
 │   │   ├── App.jsx               # Main React Root Component
 │   │   ├── App.css               # Modern glassmorphism CSS design system
 │   │   └── main.jsx              # React DOM entry point
-│   ├── .env                      # Frontend environment configuration
-│   ├── vite.config.js            # Vite build & backend proxy config
+│   ├── .env.example              # Frontend environment example
+│   ├── vite.config.js            # Vite build & backend proxy config (/api -> :5000)
 │   └── package.json              # Frontend dependencies
 │
 ├── backend/                      # ⚙️ BACKEND (Node.js + Express API + LangChain + MCP Client)
@@ -50,7 +50,7 @@ ChatBot/
 │   │   ├── timeTool.js           # MCP Real-time Clock wrapper
 │   │   └── index.js              # Barrel export for all active agent tools
 │   ├── index.js                  # Main Express Server & SSE streaming router
-│   ├── .env                      # Server environment configuration (API keys)
+│   ├── .env.example              # Server environment template
 │   └── package.json              # Backend dependencies
 │
 ├── mcp-server/                   # 🔌 MODEL CONTEXT PROTOCOL (MCP) SERVER
@@ -148,8 +148,15 @@ From the root directory:
 npm run dev
 ```
 
-* **Frontend**: [http://localhost:5174](http://localhost:5174)
+* **Frontend**: [http://localhost:5173](http://localhost:5173)
 * **Backend API**: [http://localhost:5000](http://localhost:5000)
+* **Health Check**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+
+### 3. Individual Service Commands
+- **Backend Only**: `npm run backend` (or `npm --prefix backend run dev`)
+- **Frontend Only**: `npm run frontend` (or `npm --prefix frontend run dev`)
+- **MCP Test Client**: `node mcp-server/test-client.js`
+- **Build Frontend**: `npm run build`
 
 ---
 
