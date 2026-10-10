@@ -8,6 +8,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { runAgent } from './agent/index.js';
 import { agentTools, setMcpClient } from './tools/index.js';
 import { clearSessionHistory } from './agent/memory.js';
+import { connectDB, getDb } from './config/db.js';
+import documentRoutes from './routes/documentRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +26,7 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-ID'],
   })
 );
@@ -32,14 +34,20 @@ app.use(
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Document RAG Routes (Upload, Search, Delete)
+app.use('/api/documents', documentRoutes);
+
 // 1. Health Check Endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
-    service: 'Mayank AI ChatBot Backend API (LangChain + MCP)',
-    version: '2.0.0',
+    service: 'Mayank AI ChatBot Backend API (LangChain + MCP + RAG)',
+    version: '2.1.0',
     model: process.env.GROQ_MODEL || process.env.VITE_MODEL || 'llama-3.3-70b-versatile',
     activeTools: agentTools.map((t) => t.name),
+    database: {
+      mongodb: Boolean(getDb()),
+    },
     timestamp: new Date().toISOString(),
   });
 });
@@ -379,7 +387,11 @@ app.listen(PORT, async () => {
   console.log(`🛠️ MCP Tools List:  http://localhost:${PORT}/api/mcp/tools`);
   console.log(`🕒 MCP Time Test:   http://localhost:${PORT}/api/mcp/time`);
   console.log(`🧮 MCP Calc Test:   http://localhost:${PORT}/api/mcp/calculate?a=25&b=4&op=multiply`);
+  console.log(`📄 Document RAG:    http://localhost:${PORT}/api/documents`);
   console.log(`=============================================`);
+
+  // Connect to MongoDB Atlas for RAG Vector Search
+  await connectDB();
 
   // Initialize MCP client connection
   await initMcpClient();

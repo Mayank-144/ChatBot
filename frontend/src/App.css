@@ -1122,3 +1122,150 @@
     width: 100%;
   }
 }
+
+/* ================= RAG KNOWLEDGE BASE BADGES ================= */
+.rag-knowledge-container {
+  padding: 8px 16px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.2s ease;
+}
+
+.rag-knowledge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.rag-knowledge-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rag-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.rag-status-msg {
+  font-size: 0.75rem;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.rag-error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.rag-chips-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.rag-chips-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.rag-chips-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.rag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-chip);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 0.78rem;
+  color: var(--text-main);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.rag-chip:hover {
+  background: var(--bg-chip-hover);
+  border-color: var(--border-focus);
+}
+
+.rag-chip.uploading {
+  border-style: dashed;
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.rag-chip-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.rag-chip-count {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.rag-chip-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 50%;
+  margin-left: 2px;
+  transition: all 0.15s ease;
+}
+
+.rag-chip-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.rag-doc-icon.pdf {
+  color: #ef4444;
+}
+
+.rag-doc-icon.excel {
+  color: #10b981;
+}
+
+.rag-doc-icon.default {
+  color: #3b82f6;
+}

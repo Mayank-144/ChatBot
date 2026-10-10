@@ -105,3 +105,76 @@ export async function sendChatMessage({ messages, onChunk, onToolsUsed, onDone, 
     if (onError) onError(error);
   }
 }
+
+/**
+ * Upload a document (PDF/Excel) to the backend RAG pipeline
+ * @param {File} file 
+ * @param {string} [sessionId='default']
+ * @returns {Promise<Object>}
+ */
+export async function uploadDocumentToRAG(file, sessionId = 'default') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('sessionId', sessionId);
+
+  const response = await fetch('/api/documents/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error?.message || `Failed to upload document (${response.status})`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all documents indexed in the vector database
+ * @param {string} [sessionId]
+ * @returns {Promise<Array>}
+ */
+export async function fetchRAGDocuments(sessionId) {
+  const url = sessionId ? `/api/documents?sessionId=${encodeURIComponent(sessionId)}` : '/api/documents';
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch indexed documents');
+  }
+  const data = await response.json();
+  return data.documents || [];
+}
+
+/**
+ * Delete a document from the vector store
+ * @param {string} documentId 
+ * @returns {Promise<Object>}
+ */
+export async function deleteRAGDocument(documentId) {
+  const response = await fetch(`/api/documents/${documentId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete document from vector database');
+  }
+  return response.json();
+}
+
+/**
+ * Directly search document vector index (optional utility)
+ * @param {string} query 
+ * @param {string} [sessionId]
+ * @returns {Promise<Array>}
+ */
+export async function searchRAGDocuments(query, sessionId) {
+  const response = await fetch('/api/documents/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, sessionId }),
+  });
+  if (!response.ok) {
+    throw new Error('Vector search failed');
+  }
+  const data = await response.json();
+  return data.results || [];
+}

@@ -79,14 +79,15 @@ User Prompt ──> Backend (/api/chat) ──> LangChain ReAct Agent (Groq LLM)
                      ├─ 🌤️ get_weather       ──> OpenWeatherMap API (Live Temp, Humidity, Wind)
                      ├─ 📚 wikipedia_search  ──> Wikipedia REST API (Factual Knowledge)
                      ├─ 🧮 calculator        ──> Stdio Transport ──> MCP Server (Exact Math)
-                     └─ 🕒 get_time          ──> Stdio Transport ──> MCP Server (Real-Time Clock)
+                     ├─ 🕒 get_time          ──> Stdio Transport ──> MCP Server (Real-Time Clock)
+                     └─ 📄 search_documents  ──> Cohere Embeddings + MongoDB Atlas Vector Search (RAG)
                      │
                      ▼
           Server-Sent Events (SSE) Streaming
                      │
                      ▼
           Frontend UI with Interactive Glassmorphic Badges
-          [🌤️ Live Weather] [📚 Wikipedia] [🧮 MCP Calculator] [🕒 MCP Time]
+          [🌤️ Live Weather] [📚 Wikipedia] [🧮 MCP Calculator] [🕒 MCP Time] [📄 RAG Documents]
 ```
 
 ---
@@ -95,20 +96,46 @@ User Prompt ──> Backend (/api/chat) ──> LangChain ReAct Agent (Groq LLM)
 
 ### 1. 🤖 LangChain ReAct Autonomous Agent
 * **Multi-Turn Reasoning**: Smartly decides when to call tools or answer directly.
+* **Autonomous RAG Routing**: Decides dynamically whether to invoke `search_documents` for uploaded files or use general tools/answers.
 * **Typo & Multilingual Tolerance**: Understands informal Hinglish and spelling typos (e.g. *"ujjianu weather"*, *"delhi ka mausam"*).
 * **Session-Based Memory**: Remembers previous questions and context within a session window.
 
-### 2. 🔌 Model Context Protocol (MCP) Integration
+### 2. 🧠 RAG (PDF / Excel + Cohere Multilingual + MongoDB Atlas Vector Search)
+* 📄 **Document Parsers**: Server-side parsing for **PDF** (`pdf-parse`) and **Excel / CSV** (`xlsx`).
+* 🌐 **Multilingual Embeddings**: Powered by **Cohere `embed-multilingual-v3.0`** (1024 dimensions, optimal for English, Hindi, and Hinglish).
+* 🍃 **MongoDB Atlas Vector Search**: `$vectorSearch` pipeline stage for high-speed similarity retrieval with intelligent fallback.
+* 🛠️ **`search_documents` LangChain Tool**: Fully integrated into agent tools with source file, page, and sheet attribution.
+
+#### 📌 MongoDB Atlas Vector Search Index Configuration
+In your MongoDB Atlas cluster, create a Search Index on your vectors collection (e.g. `document_vectors`) with the following JSON:
+```json
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 1024,
+      "similarity": "cosine"
+    },
+    {
+      "type": "filter",
+      "path": "sessionId"
+    }
+  ]
+}
+```
+
+### 3. 🔌 Model Context Protocol (MCP) Integration
 * Direct stdio transport integration with `@modelcontextprotocol/sdk`.
 * High-precision calculation and exact real-time clock without hallucination.
 
-### 3. 🖼️ Multimodal Intelligence & Media Support
+### 4. 🖼️ Multimodal Intelligence & Media Support
 * 📸 **Images & Photos**: Visual analysis of `.png`, `.jpg`, `.webp`, `.svg` via `qwen/qwen3.8-27b` Vision AI.
 * 🎥 **Videos**: Scene frame inspection and metadata analysis.
 * 🎵 **Audio & Voice**: Real-time speech-to-text transcription via **Groq Whisper Large V3 Turbo**.
-* 📄 **Documents**: In-browser client-side parsing for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
+* 📄 **Documents**: Client-side inspection and server-side vector ingestion for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
 
-### 4. 💬 ChatGPT-Inspired User Experience
+### 5. 💬 ChatGPT-Inspired User Experience
 * 🟢 **Typewriter SSE Streaming Cursor**: Real-time character streaming with smooth typing effects.
 * ⏹ **Send / Stop Controls**: Instant abort controller support to halt streaming at any moment.
 * 🌓 **Dark / Light Mode**: Instant theme toggle with full CSS variable design system.
