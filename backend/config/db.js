@@ -1,60 +1,48 @@
-import { MongoClient } from 'mongodb';
-
-let client = null;
-let db = null;
-
-const DB_NAME = process.env.MONGODB_DB_NAME || 'chatbot_rag';
-const COLLECTION_NAME = process.env.MONGODB_COLLECTION || 'document_vectors';
+import mongoose from 'mongoose';
 
 /**
- * Connect to MongoDB Atlas cluster
+ * Connect to MongoDB Atlas cluster using Mongoose
  */
 export async function connectDB() {
-  const uri = process.env.MONGODB_URI;
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+
   if (!uri) {
-    console.warn('⚠️ [MongoDB] MONGODB_URI is not set in environment. Vector search will be offline.');
+    console.warn('⚠️ [MongoDB] MONGO_URI is not set in environment. Vector search will be offline.');
     return null;
   }
 
   try {
-    if (!client) {
-      client = new MongoClient(uri, {
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
-      });
-      await client.connect();
-      db = client.db(DB_NAME);
-      console.log(`✅ [MongoDB Atlas] Connected successfully to database: "${DB_NAME}"`);
-    }
-    return db;
+    const conn = await mongoose.connect(uri);
+    console.log(`✅ [MongoDB Atlas] Mongoose connected to host: ${conn.connection.host}`);
+    return conn;
   } catch (error) {
-    console.error('❌ [MongoDB Atlas] Connection failed:', error.message);
+    console.error('❌ [MongoDB Atlas] Mongoose connection error:', error.message);
     return null;
   }
 }
 
 /**
- * Get active MongoDB database instance
+ * Get native database instance from active Mongoose connection
  */
 export function getDb() {
-  return db;
+  return mongoose.connection?.readyState === 1 ? mongoose.connection.db : null;
 }
 
 /**
- * Get document vectors collection
+ * Get raw collection accessor if needed
  */
 export function getVectorCollection() {
+  const db = getDb();
   if (!db) return null;
-  return db.collection(COLLECTION_NAME);
+  const collectionName = process.env.MONGODB_COLLECTION || 'chunks';
+  return db.collection(collectionName);
 }
 
 /**
- * Close MongoDB connection
+ * Disconnect Mongoose
  */
 export async function closeDB() {
-  if (client) {
-    await client.close();
-    client = null;
-    db = null;
-  }
+  await mongoose.disconnect();
 }
+
+export default connectDB;
