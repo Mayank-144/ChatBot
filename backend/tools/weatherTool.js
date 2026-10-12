@@ -29,7 +29,7 @@ async function fetchWeather({ city }) {
       const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(
         cleanCity
       )}&units=metric&appid=${apiKey}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(7000) });
 
       if (response.ok) {
         const data = await response.json();
@@ -69,21 +69,27 @@ async function fetchWeather({ city }) {
         });
       }
     } catch (error) {
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        return `Weather service timed out while fetching weather for "${cleanCity}". Please try again.`;
+      }
       // Fall through to fallback
     }
   }
 
-  // Fallback if OPENWEATHER_API_KEY is not configured
-  const simulatedTemp = 24 + Math.floor(Math.sin(cleanCity.length) * 6);
-  return JSON.stringify({
-    location: cleanCity,
-    temperature: `${simulatedTemp}°C`,
-    feelsLike: `${simulatedTemp + 1}°C`,
-    condition: 'Partly Cloudy',
-    humidity: '58%',
-    windSpeed: '14 km/h',
-    note: 'Estimated weather report.',
-  });
+  // Fallback if OPENWEATHER_API_KEY is not configured or not valid
+  if (/^[a-zA-Z\s\-]+$/.test(cleanCity) && cleanCity.length >= 2) {
+    const simulatedTemp = 24 + Math.floor(Math.sin(cleanCity.length) * 6);
+    return JSON.stringify({
+      location: cleanCity,
+      temperature: `${simulatedTemp}°C`,
+      feelsLike: `${simulatedTemp + 1}°C`,
+      condition: 'Partly Cloudy',
+      humidity: '58%',
+      windSpeed: '14 km/h',
+      note: 'Estimated weather report.',
+    });
+  }
+  return `City "${cleanCity}" is not a recognized city name. Please provide a valid city name.`;
 }
 
 /**

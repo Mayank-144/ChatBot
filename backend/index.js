@@ -282,18 +282,54 @@ app.post('/api/chat', async (req, res) => {
     return res.end();
   } catch (agentErr) {
     console.error('Agent execution error:', agentErr);
+    const friendlyMessage = formatUserFriendlyError(agentErr);
+
     if (!res.headersSent) {
-      return res.status(500).json({ error: { message: agentErr.message || 'Agent error' } });
+      return res.status(500).json({ error: { message: friendlyMessage } });
     }
     res.write(
       `data: ${JSON.stringify({
-        choices: [{ delta: { content: `\n\n*Error: ${agentErr.message}*` }, finish_reason: 'error' }],
+        choices: [{ delta: { content: `\n\n${friendlyMessage}` }, finish_reason: 'error' }],
       })}\n\n`
     );
     res.write('data: [DONE]\n\n');
     return res.end();
   }
 });
+
+/**
+ * Formats backend, Groq rate limit, or tool errors into clean, friendly user notifications.
+ * @param {Error|any} error
+ * @returns {string}
+ */
+export function formatUserFriendlyError(error) {
+  const errMsg = error?.message || error?.cause?.message || String(error || '');
+  const errLower = errMsg.toLowerCase();
+
+  // 1. Groq 429 Rate Limit
+  if (errLower.includes('429') || errLower.includes('rate limit') || errLower.includes('rate_limit_exceeded')) {
+    const match = errMsg.match(/try again in ([\d\.]+s?)/i);
+    const retryIn = match ? ` (${match[1]})` : '';
+    return `⚠️ **Groq Rate Limit (429)**\n\nGroq API ka per-minute token quota exceed ho gaya hai${retryIn}. Kripya 5-10 seconds wait karein aur dobara try karein. (Tips: Complex multi-step queries ko chhota karke puchein).`;
+  }
+
+  // 2. Timeout
+  if (errLower.includes('timeout') || errLower.includes('etimedout') || error?.name === 'TimeoutError') {
+    return `⏱️ **Request Timeout**\n\nExternal tool ya AI service se response aane mein samay lag raha hai. Kripya thodi der baad dubara prayas karein.`;
+  }
+
+  // 3. Recursion limit
+  if (errLower.includes('recursion') || errLower.includes('recursionlimit')) {
+    return `⚠️ **Complexity Limit**\n\nIs multi-step task ke execution steps maximum allowed limit (recursion limit) tak pahunch gaye. Kripya apne sawal ko thoda simplify karke puchein.`;
+  }
+
+  // 4. Missing API key
+  if (errLower.includes('api key') && errLower.includes('not configured')) {
+    return `🔑 **Configuration Error**\n\nGroq API Key backend .env file mein configured nahi hai. Kripya GROQ_API_KEY check karein.`;
+  }
+
+  return `⚠️ **Kuch galat hua**: ${errMsg}`;
+}
 
 // 4. Audio Transcription Endpoint (Groq Whisper)
 app.post('/api/transcribe', async (req, res) => {

@@ -171,135 +171,163 @@ export async function runDeepAgent({
   let activeSubagentCount = 0;
   let currentSubagentName = null;
 
-  // Stream agent events with strict recursionLimit to prevent infinite loops
-  const eventStream = await agent.streamEvents(
-    { messages },
-    {
-      version: 'v2',
-      recursionLimit: recursionLimit || 25,
-    }
-  );
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      toolCalls.length = 0;
+      finalContent = '';
+      fallbackContent = '';
+      activeSubagentCount = 0;
+      currentSubagentName = null;
 
-  for await (const event of eventStream) {
-    const eventType = event.event;
-
-    // Handle tool invocations (write_todos, task, weather, wiki, calculator, time)
-    if (eventType === 'on_tool_start') {
-      const toolData = {
-        name: event.name,
-        input: event.data?.input,
-      };
-      toolCalls.push(toolData);
-
-      // Notify tool start (for tool badge events in UI)
-      if (onToolStart) {
-        onToolStart(toolData);
-      }
-
-      // Check if subagent task tool started
-      if (event.name === 'task') {
-        activeSubagentCount++;
-        const subagentName =
-          event.data?.input?.subagent_type ||
-          event.data?.input?.subagent ||
-          'subagent';
-        currentSubagentName = subagentName;
-        if (onSubagentEvent) {
-          onSubagentEvent({
-            name: subagentName,
-            status: 'start',
-            task: event.data?.input?.description || '',
-          });
+      // Stream agent events with strict recursionLimit to prevent infinite loops
+      const eventStream = await agent.streamEvents(
+        { messages },
+        {
+          version: 'v2',
+          recursionLimit: recursionLimit || 25,
         }
-      }
+      );
 
-      // Check if planning write_todos tool started
-      if (event.name === 'write_todos' && onTodoUpdate) {
-        const rawTodos = event.data?.input?.todos || event.data?.input;
-        if (rawTodos) {
-          onTodoUpdate(normalizeTodos(rawTodos));
+      for await (const event of eventStream) {
+        const eventType = event.event;
+
+        // Handle tool invocations (write_todos, task, weather, wiki, calculator, time)
+        if (eventType === 'on_tool_start') {
+          const toolData = {
+            name: event.name,
+            input: event.data?.input,
+          };
+          toolCalls.push(toolData);
+
+          // Notify tool start (for tool badge events in UI)
+          if (onToolStart) {
+            onToolStart(toolData);
+          }
+
+          // Check if subagent task tool started
+          if (event.name === 'task') {
+            activeSubagentCount++;
+            const subagentName =
+              event.data?.input?.subagent_type ||
+              event.data?.input?.subagent ||
+              'subagent';
+            currentSubagentName = subagentName;
+            if (onSubagentEvent) {
+              onSubagentEvent({
+                name: subagentName,
+                status: 'start',
+                task: event.data?.input?.description || '',
+              });
+            }
+          }
+
+          // Check if planning write_todos tool started
+          if (event.name === 'write_todos' && onTodoUpdate) {
+            const rawTodos = event.data?.input?.todos || event.data?.input;
+            if (rawTodos) {
+              onTodoUpdate(normalizeTodos(rawTodos));
+            }
+          }
         }
-      }
-    }
 
-    if (eventType === 'on_tool_end') {
-      const toolData = {
-        name: event.name,
-        output: event.data?.output,
-      };
+        if (eventType === 'on_tool_end') {
+          const toolData = {
+            name: event.name,
+            output: event.data?.output,
+          };
 
-      if (onToolEnd) {
-        onToolEnd(toolData);
-      }
+          if (onToolEnd) {
+            onToolEnd(toolData);
+          }
 
-      // Check if subagent task tool ended
-      if (event.name === 'task') {
-        activeSubagentCount = Math.max(0, activeSubagentCount - 1);
-        const subagentName =
-          currentSubagentName ||
-          event.data?.output?.subagent_type ||
-          event.data?.output?.subagent ||
-          'subagent';
-        if (onSubagentEvent) {
-          onSubagentEvent({
-            name: subagentName,
-            status: 'completed',
-          });
+          // Check if subagent task tool ended
+          if (event.name === 'task') {
+            activeSubagentCount = Math.max(0, activeSubagentCount - 1);
+            const subagentName =
+              currentSubagentName ||
+              event.data?.output?.subagent_type ||
+              event.data?.output?.subagent ||
+              'subagent';
+            if (onSubagentEvent) {
+              onSubagentEvent({
+                name: subagentName,
+                status: 'completed',
+              });
+            }
+            currentSubagentName = null;
+          }
+
+          // Check if write_todos produced an updated todo list
+          if (event.name === 'write_todos' && onTodoUpdate) {
+            const rawTodos = event.data?.output?.todos || event.data?.output;
+            if (rawTodos) {
+              onTodoUpdate(normalizeTodos(rawTodos));
+            }
+          }
         }
-        currentSubagentName = null;
-      }
 
-      // Check if write_todos produced an updated todo list
-      if (event.name === 'write_todos' && onTodoUpdate) {
-        const rawTodos = event.data?.output?.todos || event.data?.output;
-        if (rawTodos) {
-          onTodoUpdate(normalizeTodos(rawTodos));
-        }
-      }
-    }
+        // Handle LLM streaming tokens:
+        // FILTER: Only stream tokens from the main agent coordinator when activeSubagentCount === 0.
+        // Filter out internal tokens from subagent runs so user chat doesn't receive garbled fragments.
+        if (eventType === 'on_chat_model_stream') {
+          if (activeSubagentCount === 0) {
+            const isToolCallChunk =
+              Array.isArray(event.data?.chunk?.tool_call_chunks) &&
+              event.data.chunk.tool_call_chunks.length > 0;
 
-    // Handle LLM streaming tokens:
-    // FILTER: Only stream tokens from the main agent coordinator when activeSubagentCount === 0.
-    // Filter out internal tokens from subagent runs so user chat doesn't receive garbled fragments.
-    if (eventType === 'on_chat_model_stream') {
-      if (activeSubagentCount === 0) {
-        const isToolCallChunk =
-          Array.isArray(event.data?.chunk?.tool_call_chunks) &&
-          event.data.chunk.tool_call_chunks.length > 0;
-
-        if (!isToolCallChunk) {
-          const rawChunk = event.data?.chunk?.text || event.data?.chunk?.content;
-          if (rawChunk && typeof rawChunk === 'string') {
-            const cleanChunk = rawChunk.replace(/<\|.*?\|>/g, '');
-            if (cleanChunk) {
-              finalContent += cleanChunk;
-              if (onToken) {
-                onToken(cleanChunk);
+            if (!isToolCallChunk) {
+              const rawChunk = event.data?.chunk?.text || event.data?.chunk?.content;
+              if (rawChunk && typeof rawChunk === 'string') {
+                const cleanChunk = rawChunk.replace(/<\|.*?\|>/g, '');
+                if (cleanChunk) {
+                  finalContent += cleanChunk;
+                  if (onToken) {
+                    onToken(cleanChunk);
+                  }
+                }
               }
             }
           }
         }
-      }
-    }
 
-    // Safe fallback extraction from stream events if tokens were buffered
-    if (eventType === 'on_chat_model_end' && activeSubagentCount === 0) {
-      const text = event.data?.output?.generations?.[0]?.[0]?.text || event.data?.output?.content;
-      if (text && typeof text === 'string') {
-        fallbackContent = text.replace(/<\|.*?\|>/g, '');
-      }
-    } else if (eventType === 'on_chain_end' && event.name === 'LangGraph') {
-      const msgs = event.data?.output?.messages;
-      if (Array.isArray(msgs) && msgs.length > 0) {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg?.content) {
-          const contentStr =
-            typeof lastMsg.content === 'string'
-              ? lastMsg.content
-              : JSON.stringify(lastMsg.content);
-          fallbackContent = contentStr.replace(/<\|.*?\|>/g, '');
+        // Safe fallback extraction from stream events if tokens were buffered
+        if (eventType === 'on_chat_model_end' && activeSubagentCount === 0) {
+          const text = event.data?.output?.generations?.[0]?.[0]?.text || event.data?.output?.content;
+          if (text && typeof text === 'string') {
+            fallbackContent = text.replace(/<\|.*?\|>/g, '');
+          }
+        } else if (eventType === 'on_chain_end' && event.name === 'LangGraph') {
+          const msgs = event.data?.output?.messages;
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const lastMsg = msgs[msgs.length - 1];
+            if (lastMsg?.content) {
+              const contentStr =
+                typeof lastMsg.content === 'string'
+                  ? lastMsg.content
+                  : JSON.stringify(lastMsg.content);
+              fallbackContent = contentStr.replace(/<\|.*?\|>/g, '');
+            }
+          }
         }
       }
+
+      break; // Execution succeeded, break retry loop
+    } catch (err) {
+      const isRateLimit =
+        err?.status === 429 ||
+        err?.message?.includes('429') ||
+        err?.message?.includes('Rate limit') ||
+        err?.cause?.message?.includes('429');
+
+      if (isRateLimit && attempt < maxAttempts) {
+        const match = (err?.message || err?.cause?.message || '').match(/try again in ([\d\.]+)/i);
+        const waitMs = match ? Math.min(Math.ceil(parseFloat(match[1]) * 1000) + 1000, 8000) : 4000;
+        console.warn(`⏳ Groq 429 rate limit encountered in runDeepAgent. Backing off ${waitMs}ms before retry...`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      throw err;
     }
   }
 

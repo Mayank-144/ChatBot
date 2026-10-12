@@ -64,6 +64,13 @@ const calculatorSchema = z.object({
  * @returns {Promise<string>}
  */
 async function executeMcpCalculator({ a, b, operation }) {
+  if (typeof a !== 'number' || typeof b !== 'number' || isNaN(a) || isNaN(b)) {
+    return 'Calculator Error: Both arguments "a" and "b" must be valid numbers.';
+  }
+  if (operation === 'divide' && b === 0) {
+    return 'Calculator Error: Division by zero is mathematically undefined.';
+  }
+
   try {
     const client = await getOrInitMcpClient();
     const result = await client.callTool({

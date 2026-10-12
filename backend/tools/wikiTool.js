@@ -42,12 +42,25 @@ async function searchWikipedia({ query }) {
 
     const searchResponse = await fetch(searchUrl, {
       headers: {
-        'User-Agent': 'MayankAIChatbot/1.0 (https://github.com/Mayank-144/ChatBot; contact@example.com)',
+        'User-Agent': 'MayankAIChatbot/1.0 (https://github.com/Mayank-144/ChatBot; mailto:mayankjaiswal596@gmail.com)',
+        'Accept': 'application/json',
       },
+      signal: AbortSignal.timeout(7000),
     });
 
     if (!searchResponse.ok) {
-      return `Wikipedia API search failed with status: ${searchResponse.status}`;
+      if (searchResponse.status === 429) {
+        return JSON.stringify({
+          title: cleanQuery,
+          summary: `Wikipedia is temporarily rate limiting queries (status 429). Please try again in a few moments.`,
+          status: 'rate_limited',
+        });
+      }
+      return JSON.stringify({
+        title: cleanQuery,
+        summary: `Wikipedia search could not be completed (status ${searchResponse.status}).`,
+        status: 'error',
+      });
     }
 
     const searchData = await searchResponse.json();
@@ -67,6 +80,7 @@ async function searchWikipedia({ query }) {
       headers: {
         'User-Agent': 'MayankAIChatbot/1.0 (https://github.com/Mayank-144/ChatBot; contact@example.com)',
       },
+      signal: AbortSignal.timeout(7000),
     });
 
     if (summaryResponse.ok) {
