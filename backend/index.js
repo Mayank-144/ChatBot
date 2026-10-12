@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { runAgent } from './agent/index.js';
+import { runDeepAgent } from './agent/deepAgent.js';
+import { routeQuery } from './agent/router.js';
 import { agentTools, setMcpClient } from './tools/index.js';
 import { clearSessionHistory } from './agent/memory.js';
 
@@ -39,6 +41,7 @@ app.get('/api/health', (req, res) => {
     service: 'Mayank AI ChatBot Backend API (LangChain + MCP)',
     version: '2.0.0',
     model: process.env.GROQ_MODEL || process.env.VITE_MODEL || 'llama-3.3-70b-versatile',
+    deepAgentEnabled: process.env.USE_DEEP_AGENT === 'true',
     activeTools: agentTools.map((t) => t.name),
     timestamp: new Date().toISOString(),
   });
@@ -180,30 +183,67 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
+    // Route query between Classic ReAct Agent and Deep Agent
+    const routeDecision = routeQuery(userInput, { forceDeep: req.body?.forceDeep });
+    console.log(`🧭 Query Route: [${routeDecision.route.toUpperCase()}] Reason: ${routeDecision.reason}`);
+
+    // Broadcast routing decision to frontend SSE
+    res.write(`data: ${JSON.stringify({ agentRoute: routeDecision.route, reason: routeDecision.reason })}\n\n`);
+
     const toolsUsed = [];
     let streamedAnyToken = false;
 
-    const agentResult = await runAgent({
-      input: userInput,
-      sessionId,
-      tools: agentTools,
-      onToolStart: (toolData) => {
-        if (toolData.name && !toolsUsed.includes(toolData.name)) {
-          toolsUsed.push(toolData.name);
-          // Broadcast tool usage badge event to frontend
-          res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
-        }
-      },
-      onToken: (chunk) => {
-        streamedAnyToken = true;
-        // Stream token to frontend in OpenAI SSE format
-        res.write(
-          `data: ${JSON.stringify({
-            choices: [{ delta: { content: chunk }, finish_reason: null }],
-          })}\n\n`
-        );
-      },
-    });
+    let agentResult;
+
+    if (routeDecision.route === 'deep') {
+      agentResult = await runDeepAgent({
+        input: userInput,
+        sessionId,
+        tools: agentTools,
+        onToolStart: (toolData) => {
+          if (toolData.name && !toolsUsed.includes(toolData.name)) {
+            toolsUsed.push(toolData.name);
+            res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
+          }
+        },
+        onTodoUpdate: (todos) => {
+          res.write(`data: ${JSON.stringify({ todos })}\n\n`);
+        },
+        onSubagentEvent: (subagentEvent) => {
+          res.write(`data: ${JSON.stringify({ subagentEvent })}\n\n`);
+        },
+        onToken: (chunk) => {
+          streamedAnyToken = true;
+          res.write(
+            `data: ${JSON.stringify({
+              choices: [{ delta: { content: chunk }, finish_reason: null }],
+            })}\n\n`
+          );
+        },
+      });
+    } else {
+      agentResult = await runAgent({
+        input: userInput,
+        sessionId,
+        tools: agentTools,
+        onToolStart: (toolData) => {
+          if (toolData.name && !toolsUsed.includes(toolData.name)) {
+            toolsUsed.push(toolData.name);
+            // Broadcast tool usage badge event to frontend
+            res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
+          }
+        },
+        onToken: (chunk) => {
+          streamedAnyToken = true;
+          // Stream token to frontend in OpenAI SSE format
+          res.write(
+            `data: ${JSON.stringify({
+              choices: [{ delta: { content: chunk }, finish_reason: null }],
+            })}\n\n`
+          );
+        },
+      });
+    }
 
     // If no tokens were streamed in real-time during execution, write the final output
     if (!streamedAnyToken) {
