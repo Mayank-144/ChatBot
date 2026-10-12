@@ -16,7 +16,11 @@ Guidelines:
    - For math questions (e.g., "2+5", "25*4"), call calculator.
    - For time/date questions, call get_time.
 2. For math calculations, present the final answer simply and clearly in standard natural text (e.g. "2 + 5 = 7" or "2 + 50 = 52"). Never output raw LaTeX syntax like \\mathbf{}.
-3. Respond in the language used by the user (Hindi, English, or Hinglish).
+3. LANGUAGE RULE (STRICT):
+   - By default, always respond in ENGLISH.
+   - If the user writes in English, respond strictly in English.
+   - If the user writes in Hinglish (Hindi written using the English/Latin alphabet, e.g. "weather compare karo", "kahan zyada garmi hai"), respond in natural Hinglish or English using the Latin alphabet. Never reply in Devanagari Hindi unless asked.
+   - ONLY respond in Devanagari Hindi script (e.g. "नमस्ते") if the user explicitly writes in Devanagari Hindi or explicitly asks for Hindi ("hindi me batao").
 4. Maintain conversation context and recall information shared earlier by the user.`;
 
 /**
@@ -29,7 +33,7 @@ Guidelines:
  */
 export function getGroqModel(options = {}) {
   const apiKey = options.apiKey || process.env.GROQ_API_KEY || process.env.VITE_API_KEY;
-  const modelName = options.modelName || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b';
+  const modelName = options.modelName || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'qwen/qwen3.8-27b';
   const temperature = options.temperature ?? 0.3;
 
   if (!apiKey) {
@@ -40,6 +44,7 @@ export function getGroqModel(options = {}) {
     apiKey,
     model: modelName,
     temperature,
+    maxRetries: 3,
   });
 }
 
@@ -123,63 +128,97 @@ export async function runAgent({
   let finalContent = '';
   let fallbackContent = '';
 
-  // Stream agent events (token streaming, tool invocations)
-  const eventStream = await agent.streamEvents(
-    { messages },
-    { version: 'v2' }
-  );
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      toolCalls.length = 0;
+      finalContent = '';
+      fallbackContent = '';
 
-  for await (const event of eventStream) {
-    const eventType = event.event;
+      // Stream agent events (token streaming, tool invocations)
+      const eventStream = await agent.streamEvents(
+        { messages },
+        { version: 'v2' }
+      );
 
-    // Handle tool start
-    if (eventType === 'on_tool_start') {
-      const toolData = {
-        name: event.name,
-        input: event.data?.input,
-      };
-      toolCalls.push(toolData);
-      if (onToolStart) {
-        onToolStart(toolData);
-      }
-    }
+      for await (const event of eventStream) {
+        const eventType = event.event;
 
-    // Handle tool end
-    if (eventType === 'on_tool_end') {
-      const toolData = {
-        name: event.name,
-        output: event.data?.output,
-      };
-      if (onToolEnd) {
-        onToolEnd(toolData);
-      }
-    }
+        // Handle tool start
+        if (eventType === 'on_tool_start') {
+          const toolData = {
+            name: event.name,
+            input: event.data?.input,
+          };
+          toolCalls.push(toolData);
+          if (onToolStart) {
+            onToolStart(toolData);
+          }
+        }
 
-    // Handle LLM streaming tokens
-    if (eventType === 'on_chat_model_stream') {
-      const chunk = event.data?.chunk?.text || event.data?.chunk?.content;
-      if (chunk && typeof chunk === 'string') {
-        finalContent += chunk;
-        if (onToken) {
-          onToken(chunk);
+        // Handle tool end
+        if (eventType === 'on_tool_end') {
+          const toolData = {
+            name: event.name,
+            output: event.data?.output,
+          };
+          if (onToolEnd) {
+            onToolEnd(toolData);
+          }
+        }
+
+        // Handle LLM streaming tokens
+        if (eventType === 'on_chat_model_stream') {
+          const chunk = event.data?.chunk?.text || event.data?.chunk?.content;
+          if (chunk && typeof chunk === 'string') {
+            finalContent += chunk;
+            if (onToken) {
+              onToken(chunk);
+            }
+          }
+        }
+
+        // Capture model output from stream events safely (avoids duplicate LLM invocation)
+        if (eventType === 'on_chat_model_end') {
+          const text = event.data?.output?.generations?.[0]?.[0]?.text || event.data?.output?.content;
+          if (text && typeof text === 'string') {
+            fallbackContent = text;
+          }
+        } else if (eventType === 'on_chain_end' && event.name === 'LangGraph') {
+          const msgs = event.data?.output?.messages;
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const lastMsg = msgs[msgs.length - 1];
+            if (lastMsg?.content) {
+              fallbackContent = typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
+            }
+          }
         }
       }
-    }
 
-    // Capture model output from stream events safely (avoids duplicate LLM invocation)
-    if (eventType === 'on_chat_model_end') {
-      const text = event.data?.output?.generations?.[0]?.[0]?.text || event.data?.output?.content;
-      if (text && typeof text === 'string') {
-        fallbackContent = text;
-      }
-    } else if (eventType === 'on_chain_end' && event.name === 'LangGraph') {
-      const msgs = event.data?.output?.messages;
-      if (Array.isArray(msgs) && msgs.length > 0) {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg?.content) {
-          fallbackContent = typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
+      break; // Success, exit retry loop
+    } catch (err) {
+      const isRateLimit =
+        err?.status === 429 ||
+        err?.message?.includes('429') ||
+        err?.message?.includes('Rate limit') ||
+        err?.message?.includes('rate_limit_exceeded') ||
+        err?.cause?.message?.includes('429');
+
+      if (isRateLimit && attempt < maxAttempts) {
+        const fullErrStr = `${err} ${err?.message || ''} ${err?.cause?.message || ''} ${JSON.stringify(err?.cause || {})}`;
+        const matchSec = fullErrStr.match(/try again in ([\d\.]+)\s*s\b/i);
+        const matchMs = fullErrStr.match(/try again in ([\d\.]+)\s*ms\b/i);
+        let waitMs = 5000;
+        if (matchSec) {
+          waitMs = Math.min(Math.ceil(parseFloat(matchSec[1]) * 1000) + 1500, 10000);
+        } else if (matchMs) {
+          waitMs = Math.min(Math.ceil(parseFloat(matchMs[1])) + 1000, 10000);
         }
+        console.warn(`⏳ Groq 429 rate limit encountered in runAgent (attempt ${attempt}/${maxAttempts}). Backing off ${waitMs}ms before retry...`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
       }
+      throw err;
     }
   }
 

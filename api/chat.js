@@ -273,7 +273,7 @@ export default async function handler(req) {
     // Use vision-capable multimodal model when images are present
     const targetModel = hasImages
       ? 'qwen/qwen3.8-27b'
-      : model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'openai/gpt-oss-120b';
+      : model || process.env.GROQ_MODEL || process.env.VITE_MODEL || 'qwen/qwen3.8-27b';
 
     const groqApiUrl =
       process.env.GROQ_API_URL ||

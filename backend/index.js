@@ -39,7 +39,7 @@ app.get('/api/health', (req, res) => {
     status: 'online',
     service: 'Mayank AI ChatBot Backend API (LangChain + MCP)',
     version: '2.0.0',
-    model: process.env.GROQ_MODEL || process.env.VITE_MODEL || 'llama-3.3-70b-versatile',
+    model: process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
     deepAgentEnabled: process.env.USE_DEEP_AGENT === 'true',
     activeTools: agentTools.map((t) => t.name),
     timestamp: new Date().toISOString(),
@@ -202,7 +202,7 @@ app.post('/api/chat', async (req, res) => {
           tools: agentTools,
           onToolStart: (toolData) => {
             // Preserve classic tool badges behaviour for actual tools (weather, wiki, calculator, time)
-            const metaTools = ['write_todos', 'task'];
+            const metaTools = ['write_todos', 'task', 'write_file', 'read_file', 'edit_file', 'ls'];
             if (toolData.name && !metaTools.includes(toolData.name) && !toolsUsed.includes(toolData.name)) {
               toolsUsed.push(toolData.name);
               res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);

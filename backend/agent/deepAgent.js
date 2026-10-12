@@ -1,5 +1,7 @@
-import { createDeepAgent, StateBackend } from 'deepagents';
-import { HumanMessage } from '@langchain/core/messages';
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
 import { getGroqModel } from './index.js';
 import { getSessionMessages, recordTurn } from './memory.js';
 import {
@@ -11,26 +13,57 @@ import {
 } from '../tools/index.js';
 
 /**
+ * Zod schema and LangChain tool for write_todos task planning.
+ */
+const writeTodosSchema = z.object({
+  todos: z.array(
+    z.object({
+      id: z.union([z.number(), z.string()]).optional(),
+      text: z.string().describe('Description of the task step'),
+      status: z.string().optional().default('pending'),
+    })
+  ).describe('List of task items representing plan steps and progress'),
+});
+
+export const writeTodosTool = tool(
+  async ({ todos }) => {
+    return JSON.stringify({
+      status: 'success',
+      count: todos?.length || 0,
+      todos,
+    });
+  },
+  {
+    name: 'write_todos',
+    description: 'Create, update, or track a list of step-by-step tasks (todos) to execute complex, multi-step queries systematically.',
+    schema: writeTodosSchema,
+  }
+);
+
+/**
  * Deep Agent System Prompt defining planning, delegation, and reasoning behavior.
  */
-export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI (Deep Planning Assistant), an intelligent, autonomous multi-step reasoning agent.
-You excel at breaking down complex, multi-part questions and executing them systematically.
+export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI (Deep Planning Assistant).
+You excel at breaking down complex, multi-part questions, creating structured plans, and executing them systematically.
 
 Capabilities & Protocols:
 1. Planning with 'write_todos':
-   - For multi-step questions (e.g. comparing multiple items, step-by-step problem solving, compound workflows), immediately use 'write_todos' to create an actionable, numbered plan of tasks.
-   - Keep todos clear, specific, and trackable.
-   - Update todos as you make progress and finish subtasks.
+   - For multi-step, multi-question, or compound queries, call 'write_todos' ONCE at the start to establish your numbered checklist of tasks alongside invoking the necessary tools in parallel.
+   - Do NOT call 'write_todos' repeatedly.
 
-2. Delegation with Subagents via 'task' tool:
-   - 'research-agent': Delegate all external Wikipedia lookups, general facts, definitions, and weather reports to this specialist.
-   - 'math-time-agent': Delegate mathematical calculations, arithmetic expressions, and real-time clock queries to this specialist.
-   - Avoid doing work sequentially by yourself when subagents can handle specialist domains in isolated context.
+2. Tool Execution:
+   - Use 'get_weather' for weather reports.
+   - Use 'wikipedia_search' for definitions, facts, and history.
+   - Use 'calculator' for arithmetic calculations.
+   - Use 'get_time' for current time.
 
-3. Final Synthesis:
-   - Combine all subtask findings into a clean, well-formatted, natural language response.
-   - Respond in the language used by the user (Hindi, English, or Hinglish).
-   - If mathematical calculations were performed, state final numbers clearly without raw LaTeX formatting.`;
+3. Final Synthesis & Language Rule:
+   - Directly synthesize all tool findings into a clean, beautifully formatted Markdown response.
+   - LANGUAGE RULE (STRICT):
+     * If user writes in English, respond in English.
+     * If user writes in Hinglish (Hindi written in Latin/English letters), respond in natural Hinglish or English using Latin letters. Never use Devanagari script unless explicitly requested.
+     * ONLY use Devanagari Hindi script if the user writes in Devanagari Hindi or asks "hindi me batao".
+   - State calculation totals and key takeaways clearly.`;
 
 /**
  * Normalizes raw todo input/output into a structured, predictable format:
@@ -38,35 +71,55 @@ Capabilities & Protocols:
  */
 export function normalizeTodos(raw) {
   if (!raw) return [];
+  if (raw && typeof raw.content === 'string') {
+    raw = raw.content;
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed) raw = parsed;
+    } catch {}
+  }
   const list = Array.isArray(raw)
     ? raw
     : Array.isArray(raw?.todos)
     ? raw.todos
+    : Array.isArray(raw?.content?.todos)
+    ? raw.content.todos
     : [raw];
 
-  return list.map((item, idx) => {
-    if (typeof item === 'string') {
+  return list
+    .map((item, idx) => {
+      if (typeof item === 'string') {
+        try {
+          const parsed = JSON.parse(item);
+          if (parsed && typeof parsed === 'object') {
+            const nested = normalizeTodos(parsed);
+            if (nested.length > 0) return nested[0];
+          }
+        } catch {}
+        return {
+          id: idx + 1,
+          text: item.trim(),
+          status: 'pending',
+        };
+      }
+
+      let status = 'pending';
+      const rawStatus = String(item?.status || '').toLowerCase();
+      if (['completed', 'done', 'finished', 'true'].includes(rawStatus) || item?.completed === true) {
+        status = 'completed';
+      } else if (['in_progress', 'doing', 'running', 'active'].includes(rawStatus)) {
+        status = 'in_progress';
+      }
+
       return {
-        id: idx + 1,
-        text: item.trim(),
-        status: 'pending',
+        id: item?.id || idx + 1,
+        text: item?.text || item?.title || item?.task || item?.description || `Step ${idx + 1}`,
+        status,
       };
-    }
-
-    let status = 'pending';
-    const rawStatus = String(item.status || '').toLowerCase();
-    if (['completed', 'done', 'finished', 'true'].includes(rawStatus) || item.completed === true) {
-      status = 'completed';
-    } else if (['in_progress', 'doing', 'running', 'active'].includes(rawStatus)) {
-      status = 'in_progress';
-    }
-
-    return {
-      id: item.id || idx + 1,
-      text: item.text || item.title || item.task || item.description || `Step ${idx + 1}`,
-      status,
-    };
-  });
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -74,7 +127,7 @@ export function normalizeTodos(raw) {
  */
 export function createSubagentSpecs() {
   const subagentLlm = getGroqModel({
-    modelName: process.env.GROQ_SUBAGENT_MODEL || process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    modelName: process.env.GROQ_SUBAGENT_MODEL || process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
     temperature: 0.1,
   });
 
@@ -113,19 +166,16 @@ export function getOrCreateDeepAgent() {
   }
 
   const mainLlm = getGroqModel({
-    modelName: process.env.GROQ_DEEP_MODEL || 'openai/gpt-oss-120b',
+    modelName: process.env.GROQ_DEEP_MODEL || process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
     temperature: 0.2,
   });
 
-  const subagents = createSubagentSpecs();
-
-  // Create Deep Agent using StateBackend (virtual in-memory filesystem, zero real disk/shell access)
-  cachedDeepAgent = createDeepAgent({
-    model: mainLlm,
-    systemPrompt: DEEP_AGENT_SYSTEM_PROMPT,
-    tools: agentTools,
-    subagents,
-    backend: new StateBackend(),
+  // Create Deep Agent with planning (write_todos) and direct tool execution.
+  // Uses createReactAgent with write_todos schema to avoid excessive token overhead.
+  cachedDeepAgent = createReactAgent({
+    llm: mainLlm,
+    tools: [writeTodosTool, ...agentTools],
+    messageModifier: new SystemMessage(DEEP_AGENT_SYSTEM_PROMPT),
   });
 
   return cachedDeepAgent;
@@ -158,7 +208,12 @@ export async function runDeepAgent({
 }) {
   const agent = getOrCreateDeepAgent();
   const rawPastMessages = await getSessionMessages(sessionId);
-  const pastMessages = rawPastMessages.slice(-6);
+  const pastMessages = rawPastMessages.slice(-2).map((m) => {
+    if (typeof m.content === 'string' && m.content.length > 350) {
+      return new AIMessage(m.content.slice(0, 350) + '...');
+    }
+    return m;
+  });
 
   const messages = [
     ...pastMessages,
@@ -168,10 +223,11 @@ export async function runDeepAgent({
   const toolCalls = [];
   let finalContent = '';
   let fallbackContent = '';
+  let latestTodos = [];
   let activeSubagentCount = 0;
   let currentSubagentName = null;
 
-  const maxAttempts = 2;
+  const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       toolCalls.length = 0;
@@ -226,7 +282,8 @@ export async function runDeepAgent({
           if (event.name === 'write_todos' && onTodoUpdate) {
             const rawTodos = event.data?.input?.todos || event.data?.input;
             if (rawTodos) {
-              onTodoUpdate(normalizeTodos(rawTodos));
+              latestTodos = normalizeTodos(rawTodos);
+              onTodoUpdate(latestTodos);
             }
           }
         }
@@ -262,7 +319,8 @@ export async function runDeepAgent({
           if (event.name === 'write_todos' && onTodoUpdate) {
             const rawTodos = event.data?.output?.todos || event.data?.output;
             if (rawTodos) {
-              onTodoUpdate(normalizeTodos(rawTodos));
+              latestTodos = normalizeTodos(rawTodos);
+              onTodoUpdate(latestTodos);
             }
           }
         }
@@ -318,12 +376,20 @@ export async function runDeepAgent({
         err?.status === 429 ||
         err?.message?.includes('429') ||
         err?.message?.includes('Rate limit') ||
+        err?.message?.includes('rate_limit_exceeded') ||
         err?.cause?.message?.includes('429');
 
       if (isRateLimit && attempt < maxAttempts) {
-        const match = (err?.message || err?.cause?.message || '').match(/try again in ([\d\.]+)/i);
-        const waitMs = match ? Math.min(Math.ceil(parseFloat(match[1]) * 1000) + 1000, 8000) : 4000;
-        console.warn(`⏳ Groq 429 rate limit encountered in runDeepAgent. Backing off ${waitMs}ms before retry...`);
+        const fullErrStr = `${err} ${err?.message || ''} ${err?.cause?.message || ''} ${JSON.stringify(err?.cause || {})}`;
+        const matchSec = fullErrStr.match(/try again in ([\d\.]+)\s*s\b/i);
+        const matchMs = fullErrStr.match(/try again in ([\d\.]+)\s*ms\b/i);
+        let waitMs = 5000;
+        if (matchSec) {
+          waitMs = Math.min(Math.ceil(parseFloat(matchSec[1]) * 1000) + 2000, 35000);
+        } else if (matchMs) {
+          waitMs = Math.min(Math.ceil(parseFloat(matchMs[1])) + 1500, 35000);
+        }
+        console.warn(`⏳ Groq 429 rate limit encountered in runDeepAgent (attempt ${attempt}/${maxAttempts}). Backing off ${waitMs}ms before retry...`);
         await new Promise((r) => setTimeout(r, waitMs));
         continue;
       }
@@ -341,6 +407,12 @@ export async function runDeepAgent({
 
   if (!finalContent) {
     finalContent = 'I processed your multi-step request, but no additional response was generated.';
+  }
+
+  // Finalize all planned tasks as completed for frontend visual progress
+  if (latestTodos && latestTodos.length > 0 && onTodoUpdate) {
+    const allCompleted = latestTodos.map((t) => ({ ...t, status: 'completed' }));
+    onTodoUpdate(allCompleted);
   }
 
   // Record completed turn into session memory
