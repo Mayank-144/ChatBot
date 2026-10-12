@@ -27,8 +27,7 @@ ChatBot/
 │   │   ├── hooks/
 │   │   │   ├── useChat.js             # Chat state, typewriter queue & AbortController
 │   │   │   ├── useFileUpload.js       # 4-tier attachment picker & drag-and-drop
-│   │   │   ├── useTheme.js            # Dark/Light theme state with localStorage persistence
-│   │   │   └── index.js               # Barrel export for custom hooks
+│   │   │   └── useTheme.js            # Dark/Light theme state with localStorage persistence
 │   │   ├── services/
 │   │   │   └── api.js                 # Unified SSE streaming fetcher (Todos, Subagents, Tools)
 │   │   ├── utils/
