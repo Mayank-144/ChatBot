@@ -14,10 +14,9 @@ import { clearSessionHistory } from './agent/memory.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from backend/.env, root .env, or process env
+// Load environment variables (.env in backend/ or root)
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -57,7 +56,7 @@ app.post('/api/memory/clear', (req, res) => {
 // 3. Chat Completions Streaming Endpoint (LangChain Agent + Vision Routing)
 app.post('/api/chat', async (req, res) => {
   const sessionId = req.body?.sessionId || req.headers['x-session-id'] || 'default';
-  const { messages, model } = req.body;
+  const { messages } = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: { message: 'Messages array is required.' } });
@@ -196,41 +195,69 @@ app.post('/api/chat', async (req, res) => {
     let agentResult;
 
     if (routeDecision.route === 'deep') {
-      agentResult = await runDeepAgent({
-        input: userInput,
-        sessionId,
-        tools: agentTools,
-        onToolStart: (toolData) => {
-          // Preserve classic tool badges behaviour for actual tools (weather, wiki, calculator, time)
-          const metaTools = ['write_todos', 'task'];
-          if (toolData.name && !metaTools.includes(toolData.name) && !toolsUsed.includes(toolData.name)) {
-            toolsUsed.push(toolData.name);
-            res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
-          }
-        },
-        onTodoUpdate: (todos) => {
-          // Dedicated SSE event when write_todos updates: { todos: [...] }
-          res.write(`data: ${JSON.stringify({ todos })}\n\n`);
-        },
-        onSubagentEvent: (subagentEvt) => {
-          // Dedicated SSE event when task tool starts/ends: { subagent: name, status }
-          res.write(
-            `data: ${JSON.stringify({
-              subagent: subagentEvt.name,
-              status: subagentEvt.status,
-              task: subagentEvt.task || undefined,
-            })}\n\n`
-          );
-        },
-        onToken: (chunk) => {
-          streamedAnyToken = true;
-          res.write(
-            `data: ${JSON.stringify({
-              choices: [{ delta: { content: chunk }, finish_reason: null }],
-            })}\n\n`
-          );
-        },
-      });
+      try {
+        agentResult = await runDeepAgent({
+          input: userInput,
+          sessionId,
+          tools: agentTools,
+          onToolStart: (toolData) => {
+            // Preserve classic tool badges behaviour for actual tools (weather, wiki, calculator, time)
+            const metaTools = ['write_todos', 'task'];
+            if (toolData.name && !metaTools.includes(toolData.name) && !toolsUsed.includes(toolData.name)) {
+              toolsUsed.push(toolData.name);
+              res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
+            }
+          },
+          onTodoUpdate: (todos) => {
+            // Dedicated SSE event when write_todos updates: { todos: [...] }
+            res.write(`data: ${JSON.stringify({ todos })}\n\n`);
+          },
+          onSubagentEvent: (subagentEvt) => {
+            // Dedicated SSE event when task tool starts/ends: { subagent: name, status }
+            res.write(
+              `data: ${JSON.stringify({
+                subagent: subagentEvt.name,
+                status: subagentEvt.status,
+                task: subagentEvt.task || undefined,
+              })}\n\n`
+            );
+          },
+          onToken: (chunk) => {
+            streamedAnyToken = true;
+            res.write(
+              `data: ${JSON.stringify({
+                choices: [{ delta: { content: chunk }, finish_reason: null }],
+              })}\n\n`
+            );
+          },
+        });
+      } catch (deepErr) {
+        // If Deep Agent fails before streaming tokens, fall back gracefully to classic ReAct agent
+        if (!streamedAnyToken) {
+          console.warn('⚠️ Deep Agent failed, falling back to classic ReAct agent:', deepErr.message);
+          agentResult = await runAgent({
+            input: userInput,
+            sessionId,
+            tools: agentTools,
+            onToolStart: (toolData) => {
+              if (toolData.name && !toolsUsed.includes(toolData.name)) {
+                toolsUsed.push(toolData.name);
+                res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
+              }
+            },
+            onToken: (chunk) => {
+              streamedAnyToken = true;
+              res.write(
+                `data: ${JSON.stringify({
+                  choices: [{ delta: { content: chunk }, finish_reason: null }],
+                })}\n\n`
+              );
+            },
+          });
+        } else {
+          throw deepErr;
+        }
+      }
     } else {
       agentResult = await runAgent({
         input: userInput,
@@ -326,6 +353,11 @@ export function formatUserFriendlyError(error) {
   // 4. Missing API key
   if (errLower.includes('api key') && errLower.includes('not configured')) {
     return `🔑 **Configuration Error**\n\nGroq API Key backend .env file mein configured nahi hai. Kripya GROQ_API_KEY check karein.`;
+  }
+
+  // 5. Tool Call Validation / Model Formatting Error
+  if (errLower.includes('tool call validation failed') || errLower.includes('middlewareerror')) {
+    return `⚠️ **Model Formatting Notice**\n\nAI model dwara tool call format mein unexpected token receive hua. Kripya query ko dobara bhejein.`;
   }
 
   return `⚠️ **Kuch galat hua**: ${errMsg}`;

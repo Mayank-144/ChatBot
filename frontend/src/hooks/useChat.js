@@ -88,6 +88,8 @@ export function useChat() {
 
     let promptText = input.trim();
 
+    let fullApiContent = promptText;
+
     if (hasFiles) {
       const documentContexts = docFiles
         .map((f) => f.parsedContent)
@@ -103,11 +105,9 @@ export function useChat() {
         }
       }
 
-      var fullApiContent = documentContexts
+      fullApiContent = documentContexts
         ? `[ATTACHED DOCUMENTS & DATA]\n\n${documentContexts}\n\n[USER REQUEST]\n${promptText}`
         : promptText;
-    } else {
-      var fullApiContent = promptText;
     }
 
     const userMessage = {

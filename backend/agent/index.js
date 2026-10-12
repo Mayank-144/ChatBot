@@ -1,7 +1,7 @@
 import { ChatGroq } from '@langchain/groq';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { getSessionHistory, recordTurn, getSessionMessages } from './memory.js';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { recordTurn, getSessionMessages } from './memory.js';
 
 /**
  * Default System Prompt defining agent behavior, persona, and tool usage rules.

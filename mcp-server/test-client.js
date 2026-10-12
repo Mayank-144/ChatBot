@@ -1,10 +1,16 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 async function test() {
+  const serverPath = path.resolve(__dirname, "index.js");
   const transport = new StdioClientTransport({
     command: "node",
-    args: ["index.js"]
+    args: [serverPath]
   });
 
   const client = new Client(

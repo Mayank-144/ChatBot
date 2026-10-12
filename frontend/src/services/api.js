@@ -2,19 +2,17 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
 
 /**
  * Send chat messages to custom backend API and receive streaming response
- * @param {Array} messages - Array of message objects { role, content }
- * @param {string} [sessionId] - Unique session ID for conversation memory
- * @param {Function} onChunk - Callback when new text chunk is received
- * @param {Function} onDone - Callback when streaming is finished
- * @param {Function} onError - Callback when an error occurs
- * @param {Function} [onChunk] - Callback when new text chunk is received
- * @param {Function} [onToolsUsed] - Callback when tool badges array is updated
- * @param {Function} [onTodos] - Callback when live todo planning list is updated
- * @param {Function} [onSubagent] - Callback when subagent starts or completes
- * @param {Function} [onAgentRoute] - Callback when query router identifies agent type
- * @param {Function} [onDone] - Callback when streaming is finished
- * @param {Function} [onError] - Callback when an error occurs
- * @param {AbortSignal} [signal] - Optional abort signal to cancel request
+ * @param {Object} options
+ * @param {Array} options.messages - Array of message objects { role, content }
+ * @param {string} [options.sessionId='default'] - Unique session ID for conversation memory
+ * @param {Function} [options.onChunk] - Callback when new text chunk is received
+ * @param {Function} [options.onToolsUsed] - Callback when tool badges array is updated
+ * @param {Function} [options.onTodos] - Callback when live todo planning list is updated
+ * @param {Function} [options.onSubagent] - Callback when subagent starts or completes
+ * @param {Function} [options.onAgentRoute] - Callback when query router identifies agent type
+ * @param {Function} [options.onDone] - Callback when streaming is finished
+ * @param {Function} [options.onError] - Callback when an error occurs
+ * @param {AbortSignal} [options.signal] - Optional abort signal to cancel request
  */
 export async function sendChatMessage({
   messages,
