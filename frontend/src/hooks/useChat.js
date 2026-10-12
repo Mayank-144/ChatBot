@@ -124,6 +124,9 @@ export function useChat() {
       role: 'assistant',
       content: '',
       isStreaming: true,
+      agentRoute: null,
+      todos: [],
+      subagents: [],
     };
 
     const updatedMessages = [...messages, userMessage];
@@ -210,6 +213,13 @@ export function useChat() {
       messages: updatedMessages,
       sessionId,
       signal: abortController.signal,
+      onAgentRoute: (route) => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId ? { ...msg, agentRoute: route } : msg
+          )
+        );
+      },
       onToolsUsed: (tools) => {
         if (Array.isArray(tools) && tools.length > 0) {
           capturedTools = Array.from(new Set([...capturedTools, ...tools]));
@@ -219,6 +229,35 @@ export function useChat() {
             )
           );
         }
+      },
+      onTodos: (incomingTodos) => {
+        if (Array.isArray(incomingTodos) && incomingTodos.length > 0) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsgId ? { ...msg, todos: incomingTodos } : msg
+            )
+          );
+        }
+      },
+      onSubagent: (subagentEvt) => {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id !== assistantMsgId) return msg;
+            const currentSubagents = Array.isArray(msg.subagents) ? [...msg.subagents] : [];
+            const existingIdx = currentSubagents.findIndex(
+              (s) => s.name === subagentEvt.name
+            );
+            if (existingIdx >= 0) {
+              currentSubagents[existingIdx] = {
+                ...currentSubagents[existingIdx],
+                ...subagentEvt,
+              };
+            } else {
+              currentSubagents.push(subagentEvt);
+            }
+            return { ...msg, subagents: currentSubagents };
+          })
+        );
       },
       onChunk: (chunk) => {
         if (!isStoppedRef.current) {

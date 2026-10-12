@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CopyIcon, CheckIcon } from '../Icons/Icons';
 import { FileCard } from './FileCard';
+import { LiveTodoProgress } from './LiveTodoProgress';
 
 const TOOL_CONFIG = {
   get_weather: {
@@ -59,6 +60,15 @@ export function MessageItem({ msg, index, copiedIndex, onCopy }) {
             );
           })}
         </div>
+      )}
+
+      {/* Deep Agent Plan & Subagent Progress */}
+      {msg.role === 'assistant' && (
+        <LiveTodoProgress
+          todos={msg.todos}
+          subagents={msg.subagents}
+          isStreaming={msg.isStreaming}
+        />
       )}
 
       {/* Message Body */}

@@ -7,12 +7,30 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
  * @param {Function} onChunk - Callback when new text chunk is received
  * @param {Function} onDone - Callback when streaming is finished
  * @param {Function} onError - Callback when an error occurs
- * @param {AbortSignal} signal - Optional abort signal to cancel request
+ * @param {Function} [onChunk] - Callback when new text chunk is received
+ * @param {Function} [onToolsUsed] - Callback when tool badges array is updated
+ * @param {Function} [onTodos] - Callback when live todo planning list is updated
+ * @param {Function} [onSubagent] - Callback when subagent starts or completes
+ * @param {Function} [onAgentRoute] - Callback when query router identifies agent type
+ * @param {Function} [onDone] - Callback when streaming is finished
+ * @param {Function} [onError] - Callback when an error occurs
+ * @param {AbortSignal} [signal] - Optional abort signal to cancel request
  */
-export async function sendChatMessage({ messages, sessionId = 'default', onChunk, onToolsUsed, onDone, onError, signal }) {
+export async function sendChatMessage({
+  messages,
+  sessionId = 'default',
+  onChunk,
+  onToolsUsed,
+  onTodos,
+  onSubagent,
+  onAgentRoute,
+  onDone,
+  onError,
+  signal,
+}) {
   try {
     // If the current request contains images, restrict chat context to the last 4 messages
-    // to strictly prevent exceeding Groq's 7000 input tokens per minute (ITPM) rate limit.
+    // to strictly prevent exceeding Groq's input token limits.
     const lastMsg = messages[messages.length - 1];
     const hasCurrentImages = lastMsg && Array.isArray(lastMsg.images) && lastMsg.images.length > 0;
     const windowedMessages = hasCurrentImages ? messages.slice(-4) : messages.slice(-12);
@@ -50,6 +68,35 @@ export async function sendChatMessage({ messages, sessionId = 'default', onChunk
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
 
+      const handleParsedEvent = (parsed) => {
+        if (!parsed || typeof parsed !== 'object') return;
+
+        if (parsed.agentRoute && onAgentRoute) {
+          onAgentRoute(parsed.agentRoute, parsed.reason);
+        }
+
+        if (parsed.toolsUsed && onToolsUsed) {
+          onToolsUsed(parsed.toolsUsed);
+        }
+
+        if (parsed.todos && onTodos) {
+          onTodos(parsed.todos);
+        }
+
+        if (parsed.subagent && onSubagent) {
+          onSubagent({
+            name: parsed.subagent,
+            status: parsed.status,
+            task: parsed.task,
+          });
+        }
+
+        const delta = parsed.choices?.[0]?.delta?.content || '';
+        if (delta && onChunk) {
+          onChunk(delta);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -66,13 +113,7 @@ export async function sendChatMessage({ messages, sessionId = 'default', onChunk
           if (trimmed.startsWith('data: ')) {
             try {
               const parsed = JSON.parse(trimmed.slice(6));
-              if (parsed.toolsUsed && onToolsUsed) {
-                onToolsUsed(parsed.toolsUsed);
-              }
-              const delta = parsed.choices?.[0]?.delta?.content || '';
-              if (delta && onChunk) {
-                onChunk(delta);
-              }
+              handleParsedEvent(parsed);
             } catch (e) {
               // Partial JSON chunk
             }
@@ -83,21 +124,28 @@ export async function sendChatMessage({ messages, sessionId = 'default', onChunk
       if (buffer && buffer.startsWith('data: ')) {
         try {
           const parsed = JSON.parse(buffer.slice(6));
-          if (parsed.toolsUsed && onToolsUsed) {
-            onToolsUsed(parsed.toolsUsed);
-          }
-          const delta = parsed.choices?.[0]?.delta?.content || '';
-          if (delta && onChunk) {
-            onChunk(delta);
-          }
+          handleParsedEvent(parsed);
         } catch { }
       }
 
       if (onDone) onDone();
     } else {
       const data = await response.json();
+      if (data.agentRoute && onAgentRoute) {
+        onAgentRoute(data.agentRoute, data.reason);
+      }
       if (data.toolsUsed && onToolsUsed) {
         onToolsUsed(data.toolsUsed);
+      }
+      if (data.todos && onTodos) {
+        onTodos(data.todos);
+      }
+      if (data.subagent && onSubagent) {
+        onSubagent({
+          name: data.subagent,
+          status: data.status,
+          task: data.task,
+        });
       }
       const fullContent = data.choices?.[0]?.message?.content || '';
       if (onChunk) onChunk(fullContent);
