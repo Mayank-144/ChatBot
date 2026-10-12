@@ -201,16 +201,26 @@ app.post('/api/chat', async (req, res) => {
         sessionId,
         tools: agentTools,
         onToolStart: (toolData) => {
-          if (toolData.name && !toolsUsed.includes(toolData.name)) {
+          // Preserve classic tool badges behaviour for actual tools (weather, wiki, calculator, time)
+          const metaTools = ['write_todos', 'task'];
+          if (toolData.name && !metaTools.includes(toolData.name) && !toolsUsed.includes(toolData.name)) {
             toolsUsed.push(toolData.name);
             res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
           }
         },
         onTodoUpdate: (todos) => {
+          // Dedicated SSE event when write_todos updates: { todos: [...] }
           res.write(`data: ${JSON.stringify({ todos })}\n\n`);
         },
-        onSubagentEvent: (subagentEvent) => {
-          res.write(`data: ${JSON.stringify({ subagentEvent })}\n\n`);
+        onSubagentEvent: (subagentEvt) => {
+          // Dedicated SSE event when task tool starts/ends: { subagent: name, status }
+          res.write(
+            `data: ${JSON.stringify({
+              subagent: subagentEvt.name,
+              status: subagentEvt.status,
+              task: subagentEvt.task || undefined,
+            })}\n\n`
+          );
         },
         onToken: (chunk) => {
           streamedAnyToken = true;
