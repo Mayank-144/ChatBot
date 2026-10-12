@@ -53,7 +53,8 @@ app.post('/api/memory/clear', (req, res) => {
 
 // 3. Chat Completions Streaming Endpoint (LangChain Agent + Vision Routing)
 app.post('/api/chat', async (req, res) => {
-  const { messages, model, sessionId = 'default' } = req.body;
+  const sessionId = req.body?.sessionId || req.headers['x-session-id'] || 'default';
+  const { messages, model } = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: { message: 'Messages array is required.' } });

@@ -3,12 +3,13 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
 /**
  * Send chat messages to custom backend API and receive streaming response
  * @param {Array} messages - Array of message objects { role, content }
+ * @param {string} [sessionId] - Unique session ID for conversation memory
  * @param {Function} onChunk - Callback when new text chunk is received
  * @param {Function} onDone - Callback when streaming is finished
  * @param {Function} onError - Callback when an error occurs
  * @param {AbortSignal} signal - Optional abort signal to cancel request
  */
-export async function sendChatMessage({ messages, onChunk, onToolsUsed, onDone, onError, signal }) {
+export async function sendChatMessage({ messages, sessionId = 'default', onChunk, onToolsUsed, onDone, onError, signal }) {
   try {
     // If the current request contains images, restrict chat context to the last 4 messages
     // to strictly prevent exceeding Groq's 7000 input tokens per minute (ITPM) rate limit.
@@ -29,9 +30,11 @@ export async function sendChatMessage({ messages, onChunk, onToolsUsed, onDone, 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Session-ID': sessionId,
       },
       body: JSON.stringify({
         messages: formattedPayload,
+        sessionId,
       }),
       signal,
     });

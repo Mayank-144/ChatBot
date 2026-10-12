@@ -61,6 +61,32 @@ export function createChatAgent({ tools = [], systemPrompt = DEFAULT_SYSTEM_PROM
   });
 }
 
+// Module-level agent cache to avoid recompiling LangGraph on every single request
+let cachedAgent = null;
+let cachedAgentKey = '';
+
+/**
+ * Retrieves a cached agent instance or compiles a new one if configuration changed.
+ * @param {Object} params
+ * @returns {any}
+ */
+export function getOrCreateChatAgent({ tools = [], systemPrompt = DEFAULT_SYSTEM_PROMPT, model = null }) {
+  const toolNames = tools.map((t) => t.name).sort().join(',');
+  const cacheKey = `${toolNames}::${systemPrompt}`;
+
+  // If a custom model instance is provided, create without caching
+  if (model !== null) {
+    return createChatAgent({ tools, systemPrompt, model });
+  }
+
+  if (!cachedAgent || cachedAgentKey !== cacheKey) {
+    cachedAgent = createChatAgent({ tools, systemPrompt });
+    cachedAgentKey = cacheKey;
+  }
+
+  return cachedAgent;
+}
+
 /**
  * Execute the agent with session memory and streaming callbacks.
  * @param {Object} params
@@ -82,7 +108,8 @@ export async function runAgent({
   onToolStart = null,
   onToolEnd = null,
 }) {
-  const agent = createChatAgent({ tools, systemPrompt, model });
+  // Use cached agent to eliminate graph compilation latency per request
+  const agent = getOrCreateChatAgent({ tools, systemPrompt, model });
   const rawPastMessages = await getSessionMessages(sessionId);
   // Keep last 6 messages for token efficiency on free-tier limits
   const pastMessages = rawPastMessages.slice(-6);
@@ -94,6 +121,7 @@ export async function runAgent({
 
   const toolCalls = [];
   let finalContent = '';
+  let fallbackContent = '';
 
   // Stream agent events (token streaming, tool invocations)
   const eventStream = await agent.streamEvents(
@@ -137,13 +165,34 @@ export async function runAgent({
         }
       }
     }
+
+    // Capture model output from stream events safely (avoids duplicate LLM invocation)
+    if (eventType === 'on_chat_model_end') {
+      const text = event.data?.output?.generations?.[0]?.[0]?.text || event.data?.output?.content;
+      if (text && typeof text === 'string') {
+        fallbackContent = text;
+      }
+    } else if (eventType === 'on_chain_end' && event.name === 'LangGraph') {
+      const msgs = event.data?.output?.messages;
+      if (Array.isArray(msgs) && msgs.length > 0) {
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg?.content) {
+          fallbackContent = typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
+        }
+      }
+    }
   }
 
-  // If finalContent is still empty (e.g. from state graph final message), extract from final state
+  // Safe fallback without making an expensive second agent.invoke() call
+  if (!finalContent && fallbackContent) {
+    finalContent = fallbackContent;
+    if (onToken) {
+      onToken(finalContent);
+    }
+  }
+
   if (!finalContent) {
-    const finalState = await agent.invoke({ messages });
-    const lastMsg = finalState.messages[finalState.messages.length - 1];
-    finalContent = typeof lastMsg?.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg?.content || '');
+    finalContent = 'I processed your request, but no response was generated.';
   }
 
   // Save interaction to session memory
