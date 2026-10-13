@@ -118,8 +118,10 @@ export const delegateToUtilityAgentTool = tool(
       const results = [];
 
       // Check if weather mentioned
-      if (city || /weather|mausam|temp|climate/i.test(cleanTask) || /indore|delhi|mumbai|jaipur/i.test(cleanTask)) {
-        const targetCity = city || cleanTask.match(/(?:in|of|for|at)\s+([a-zA-Z\s]+?)(?:,|\.|\band\b|$)/i)?.[1]?.trim() || (/indore/i.test(cleanTask) ? 'Indore' : 'Indore');
+      if (city || /weather|mausam|temp|climate/i.test(cleanTask) || /\b(?:indore|delhi|mumbai|jaipur|bengaluru|bangalore|kolkata|chennai|pune|hyderabad)\b/i.test(cleanTask)) {
+        const cityMatch = cleanTask.match(/(?:in|of|for|at)\s+([a-zA-Z\s]+?)(?:,|\.|\band\b|$)/i)?.[1]?.trim()
+          || cleanTask.match(/\b(indore|delhi|mumbai|jaipur|bengaluru|bangalore|kolkata|chennai|pune|hyderabad)\b/i)?.[1]?.trim();
+        const targetCity = city || cityMatch || 'Indore';
         try {
           const weatherRes = await weatherTool.invoke({ city: targetCity });
           results.push(`[Weather in ${targetCity}]: ${weatherRes}`);
@@ -129,14 +131,38 @@ export const delegateToUtilityAgentTool = tool(
       }
 
       // Check if calculation mentioned
-      const mathMatch = cleanTask.match(/\d+\s*[\*x×\+\-\/]\s*\d+/i) || cleanTask.match(/([\d\s\+\-\*\/\×\÷\.\(\)]+(?:[\+\-\*\/\×\÷][\d\s\+\-\*\/\×\÷\.\(\)]+)+)/);
-      if (calculation || mathMatch) {
-        const rawMath = String(calculation || mathMatch[0]);
+      const mathMatch = cleanTask.match(/(\d+(?:\.\d+)?)\s*([\*x×\+\-\/])\s*(\d+(?:\.\d+)?)/i);
+      if (a !== undefined && b !== undefined) {
+        const opName = operation === 'multiply' || operation === 'product' || operation === '*'
+          ? 'multiply'
+          : operation === 'subtract' || operation === '-'
+          ? 'subtract'
+          : operation === 'divide' || operation === '/'
+          ? 'divide'
+          : 'add';
         try {
-          const calcRes = await calculatorTool.invoke({ expression: rawMath });
-          results.push(`[Calculation]: ${rawMath.trim()} = ${calcRes}`);
+          const calcRes = await calculatorTool.invoke({ a: Number(a), b: Number(b), operation: opName });
+          results.push(`[Calculation]: ${calcRes}`);
         } catch (cErr) {
           results.push(`[Calculation]: ${cErr.message}`);
+        }
+      } else if (calculation || mathMatch) {
+        const rawMath = String(calculation || mathMatch[0]);
+        const m = rawMath.match(/(\d+(?:\.\d+)?)\s*([\*x×\+\-\/])\s*(\d+(?:\.\d+)?)/i);
+        if (m) {
+          const num1 = Number(m[1]);
+          const symb = m[2];
+          const num2 = Number(m[3]);
+          const opName = (symb === '*' || symb === 'x' || symb === '×') ? 'multiply'
+            : symb === '-' ? 'subtract'
+            : symb === '/' ? 'divide'
+            : 'add';
+          try {
+            const calcRes = await calculatorTool.invoke({ a: num1, b: num2, operation: opName });
+            results.push(`[Calculation]: ${calcRes}`);
+          } catch (cErr) {
+            results.push(`[Calculation]: ${cErr.message}`);
+          }
         }
       }
 
