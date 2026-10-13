@@ -59,18 +59,20 @@ export function useChat() {
     setCopiedIndex(null);
   };
 
-  const handleSend = async ({ stagedFiles = [], clearStagedFiles }) => {
+  const handleSend = async (options = {}, overrideText = '') => {
+    const { stagedFiles = [], clearStagedFiles } = options || {};
     const isParsing = stagedFiles.some((f) => f.status === 'parsing');
     if (isParsing) {
       alert('Please wait while the document is being processed...');
       return;
     }
 
-    const activeText = (typeof overrideText === 'string' ? overrideText : input).trim();
+    const activeText = (typeof overrideText === 'string' && overrideText.trim() ? overrideText : input).trim();
     const hasInput = activeText.length > 0;
     const hasFiles = stagedFiles.length > 0;
 
-    if ((!hasInput && !hasFiles) || loading) return;
+    if (!hasInput && !hasFiles) return;
+    if (loading && !overrideText) return;
 
     // Attached file metadata for UI cards (including images)
     const attachedMetadata = stagedFiles.map((f) => ({
@@ -301,72 +303,99 @@ export function useChat() {
 
   const handleApprove = async (approvalReq) => {
     const approvalId = approvalReq?.approvalId;
+    const actionName = approvalReq?.action || 'Approved sensitive action';
+
+    // Optimistically update message state so user gets immediate visual confirmation
     setMessages((prev) =>
-      prev.map((m) =>
-        (approvalId && m.approvalRequest?.approvalId === approvalId) || (!approvalId && m.approvalRequest)
-          ? {
-              ...m,
-              approvalRequest: {
-                ...m.approvalRequest,
-                resolvedStatus: 'approved',
-              },
-            }
-          : m
-      )
+      prev.map((m) => {
+        const matchesApproval =
+          (approvalId && m.approvalRequest?.approvalId === approvalId) ||
+          m.approvalRequest ||
+          m.todos?.some((t) => t.status === 'awaiting_approval');
+
+        if (matchesApproval) {
+          const updatedTodos = (m.todos || []).map((t) =>
+            t.status === 'awaiting_approval' ? { ...t, status: 'completed' } : t
+          );
+          return {
+            ...m,
+            todos: updatedTodos,
+            approvalRequest: {
+              ...(m.approvalRequest || {}),
+              action: actionName,
+              resolvedStatus: 'approved',
+            },
+          };
+        }
+        return m;
+      })
     );
 
-    if (approvalId) {
-      try {
-        await submitApprovalDecision({
-          approvalId,
-          sessionId,
-          decision: 'approve',
-        });
-      } catch (err) {
-        console.warn('Approval decision submit warning:', err);
-      }
+    // Send decision to backend (with sessionId fallback)
+    try {
+      await submitApprovalDecision({
+        approvalId: approvalId || undefined,
+        sessionId,
+        decision: 'approve',
+      });
+    } catch (err) {
+      console.warn('Approval decision submit notice:', err);
     }
 
+    // If streaming has finished and agent is idle, trigger next turn with approval acknowledgment
     if (!loading) {
       const text = approvalReq?.action
-        ? `Approve: Proceed with "${approvalReq.action}".`
-        : 'Approve: Proceed with the action.';
+        ? `Approved: Proceed with "${approvalReq.action}".`
+        : 'Approved: Proceed with the action.';
       handleSend({}, text);
     }
   };
 
   const handleReject = async (approvalReq) => {
     const approvalId = approvalReq?.approvalId;
+    const actionName = approvalReq?.action || 'Rejected sensitive action';
+
+    // Optimistically update message state
     setMessages((prev) =>
-      prev.map((m) =>
-        (approvalId && m.approvalRequest?.approvalId === approvalId) || (!approvalId && m.approvalRequest)
-          ? {
-              ...m,
-              approvalRequest: {
-                ...m.approvalRequest,
-                resolvedStatus: 'rejected',
-              },
-            }
-          : m
-      )
+      prev.map((m) => {
+        const matchesApproval =
+          (approvalId && m.approvalRequest?.approvalId === approvalId) ||
+          m.approvalRequest ||
+          m.todos?.some((t) => t.status === 'awaiting_approval');
+
+        if (matchesApproval) {
+          const updatedTodos = (m.todos || []).map((t) =>
+            t.status === 'awaiting_approval' ? { ...t, status: 'cancelled' } : t
+          );
+          return {
+            ...m,
+            todos: updatedTodos,
+            approvalRequest: {
+              ...(m.approvalRequest || {}),
+              action: actionName,
+              resolvedStatus: 'rejected',
+            },
+          };
+        }
+        return m;
+      })
     );
 
-    if (approvalId) {
-      try {
-        await submitApprovalDecision({
-          approvalId,
-          sessionId,
-          decision: 'reject',
-        });
-      } catch (err) {
-        console.warn('Approval reject submit warning:', err);
-      }
+    // Send rejection decision to backend
+    try {
+      await submitApprovalDecision({
+        approvalId: approvalId || undefined,
+        sessionId,
+        decision: 'reject',
+      });
+    } catch (err) {
+      console.warn('Approval reject submit notice:', err);
     }
 
     if (!loading) {
       const text = approvalReq?.action
-        ? `Reject: Cancel "${approvalReq.action}". Do not execute it.`
-        : 'Reject: Cancel this action.';
+        ? `Rejected: Cancel "${approvalReq.action}". Do not execute it.`
+        : 'Rejected: Cancel this action.';
       handleSend({}, text);
     }
   };

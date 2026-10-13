@@ -64,10 +64,11 @@ Execution Protocols:
      * Call 'delegate_to_utility_agent' with { task: "Check weather in Indore and calculate 25 * 4" }
 
 2. DRAFT & HITL HUMAN APPROVAL (Turn 2):
-   - With findings gathered from Research and Utility agents:
+   - Once research and utility outputs are returned, DO NOT re-query research or utility agents again.
+   - Immediately proceed to the communication phase:
      * Call 'delegate_to_communication_agent' with { to: "team@example.com", subject: "Indore Summary & Report", body: "..." }
      * Call 'send_email' with { to: "team@example.com", subject: "Indore Summary & Report", body: "..." }
-   - 'send_email' is a sensitive action that automatically PAUSES backend execution and requests explicit human approval (Approve or Reject).
+   - 'send_email' is a sensitive action that pauses server execution and awaits explicit human approval (Approve or Reject).
 
 3. FINAL SYNTHESIS:
    - Provide a clean, well-formatted Markdown report of all findings (Indore facts, weather, math calculation, and email approval status).

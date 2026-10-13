@@ -15,7 +15,7 @@ const SUBAGENT_CONFIG = {
   },
   'math-time-agent': {
     label: 'Math & Time Specialist',
-    icon: '⏱️',
+    icon: '🧮',
   },
 };
 
@@ -28,24 +28,93 @@ export function LiveTodoProgress({
   isStreaming = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [submittingAction, setSubmittingAction] = useState(null); // 'approve' | 'reject' | null
 
   const hasTodos = Array.isArray(todos) && todos.length > 0;
   const hasSubagents = Array.isArray(subagents) && subagents.length > 0;
-  const hasApproval = Boolean(approvalRequest || todos.some((t) => t.status === 'awaiting_approval'));
+
+  const awaitingTodo = todos.find((t) => t.status === 'awaiting_approval');
+  const hasApproval = Boolean(approvalRequest || awaitingTodo);
 
   if (!hasTodos && !hasSubagents && !hasApproval) {
     return null;
   }
+
+  // Construct effective approval object even if SSE hasn't populated full approvalRequest
+  const effectiveApproval = approvalRequest || (awaitingTodo ? {
+    approvalId: null,
+    action: awaitingTodo.text || 'Send Email with Summary',
+    details: 'Human authorization is required to send this email summary.',
+    payload: {
+      type: 'email',
+      to: 'team@example.com',
+      subject: 'Summary Report & Live Weather',
+      body: 'Summary of Indore facts, current weather and mathematical calculations.',
+    },
+  } : null);
+
+  const isResolved = Boolean(
+    approvalRequest?.resolvedStatus ||
+    (effectiveApproval && awaitingTodo && awaitingTodo.status !== 'awaiting_approval')
+  );
+
+  const resolvedStatus =
+    approvalRequest?.resolvedStatus ||
+    (awaitingTodo?.status === 'completed' ? 'approved' : awaitingTodo?.status === 'cancelled' || awaitingTodo?.status === 'rejected' ? 'rejected' : null);
 
   const completedCount = todos.filter((t) => t.status === 'completed').length;
   const inProgressCount = todos.filter((t) => t.status === 'in_progress').length;
   const awaitingCount = todos.filter((t) => t.status === 'awaiting_approval').length;
   const totalCount = todos.length;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
-  const isResolved = Boolean(approvalRequest?.resolvedStatus);
+
+  const handleApproveClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (submittingAction || isResolved) return;
+    setSubmittingAction('approve');
+    try {
+      if (onApprove) {
+        await onApprove(effectiveApproval);
+      }
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const handleRejectClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (submittingAction || isResolved) return;
+    setSubmittingAction('reject');
+    try {
+      if (onReject) {
+        await onReject(effectiveApproval);
+      }
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const actionDisplay =
+    effectiveApproval?.action ||
+    awaitingTodo?.text ||
+    'Send Email with Summary & Data';
+
+  const recipientDisplay =
+    effectiveApproval?.payload?.to ||
+    (actionDisplay.includes('@') ? actionDisplay.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] : 'team@example.com');
+
+  const subjectDisplay =
+    effectiveApproval?.payload?.subject ||
+    'Summary Report & Live Weather';
+
+  const bodyDisplay =
+    effectiveApproval?.payload?.body ||
+    effectiveApproval?.details;
 
   return (
-    <div className={`plan-progress-card ${hasApproval ? 'needs-approval' : ''}`}>
+    <div className={`plan-progress-card ${hasApproval && !isResolved ? 'needs-approval' : ''} ${isResolved ? 'resolved-card' : ''}`}>
       {/* Collapsible Header */}
       <button
         type="button"
@@ -56,7 +125,11 @@ export function LiveTodoProgress({
         <div className="plan-progress-title">
           <span className="plan-icon">{hasApproval ? '🛡️' : '📋'}</span>
           <span className="plan-title-text">
-            {hasApproval ? 'Human Approval Checkpoint' : 'Execution Plan & Subtasks'}
+            {hasApproval
+              ? isResolved
+                ? 'Human Approval Checkpoint (Completed)'
+                : 'Human Approval Checkpoint'
+              : 'Execution Plan & Subtasks'}
           </span>
           {hasTodos && (
             <span
@@ -65,7 +138,7 @@ export function LiveTodoProgress({
               }`}
             >
               {awaitingCount > 0
-                ? `${awaitingCount} Awaiting Approval`
+                ? `${awaitingCount} Awaiting Decision`
                 : allCompleted
                 ? `All ${totalCount} Done ✓`
                 : `${completedCount}/${totalCount} Completed`}
@@ -86,57 +159,106 @@ export function LiveTodoProgress({
         <div className="plan-progress-content">
           {/* Human-in-the-Loop Approval Action Banner */}
           {hasApproval && (
-            <div className={`plan-approval-banner ${isResolved ? 'resolved' : ''}`}>
+            <div className={`plan-approval-banner ${isResolved ? 'resolved ' + resolvedStatus : 'active-checkpoint'}`}>
               <div className="plan-approval-info">
                 <div className="plan-approval-header-row">
-                  <span className="plan-approval-badge">🛡️ Action Requires Human Approval</span>
+                  <div className="plan-approval-tag-group">
+                    <span className="plan-approval-badge">
+                      <span className="shield-icon">🛡️</span>
+                      <span>Action Requires Human Approval</span>
+                    </span>
+                    {!isResolved && (
+                      <span className="approval-live-pulse-tag">Decision Needed</span>
+                    )}
+                  </div>
+
                   {isResolved && (
-                    <span className={`plan-approval-status-tag ${approvalRequest.resolvedStatus}`}>
-                      {approvalRequest.resolvedStatus === 'approved' ? '✓ Approved' : '✕ Rejected / Cancelled'}
+                    <span className={`plan-approval-status-tag ${resolvedStatus || 'approved'}`}>
+                      {resolvedStatus === 'approved' ? '✓ Approved by User' : '✕ Rejected / Cancelled'}
                     </span>
                   )}
                 </div>
-                <p className="plan-approval-desc">
-                  {approvalRequest?.action ||
-                    'Please review and approve the sensitive action before execution.'}
-                </p>
 
-                {/* Email Draft Preview if applicable */}
-                {approvalRequest?.payload?.to && (
+                <div className="plan-approval-main-desc">
+                  <span className="approval-action-title">{actionDisplay}</span>
+                  <p className="plan-approval-subtext">
+                    {isResolved
+                      ? resolvedStatus === 'approved'
+                        ? 'This sensitive action was authorized by you and executed by the AI coordinator.'
+                        : 'This sensitive action was rejected by you and execution was cancelled.'
+                      : 'Please review and authorize this sensitive action before execution continues.'}
+                  </p>
+                </div>
+
+                {/* Email Draft Preview Card */}
+                {recipientDisplay && (
                   <div className="approval-email-preview">
-                    <div className="approval-email-row"><strong>To:</strong> {approvalRequest.payload.to}</div>
-                    <div className="approval-email-row"><strong>Subject:</strong> {approvalRequest.payload.subject}</div>
-                    {approvalRequest.payload.body && (
-                      <div className="approval-email-body">{approvalRequest.payload.body}</div>
+                    <div className="approval-email-preview-header">
+                      <span className="preview-label">✉️ Email Draft Preview</span>
+                    </div>
+                    <div className="approval-email-row">
+                      <span className="field-name">To:</span>
+                      <span className="field-value recipient-chip">{recipientDisplay}</span>
+                    </div>
+                    {subjectDisplay && (
+                      <div className="approval-email-row">
+                        <span className="field-name">Subject:</span>
+                        <span className="field-value subject-text">{subjectDisplay}</span>
+                      </div>
+                    )}
+                    {bodyDisplay && (
+                      <div className="approval-email-body">
+                        {bodyDisplay}
+                      </div>
                     )}
                   </div>
                 )}
-
-                {approvalRequest?.estimatedCost && approvalRequest.estimatedCost !== 'N/A' && (
-                  <span className="plan-approval-cost">
-                    Budget / Cost: <strong>₹{approvalRequest.estimatedCost}</strong>
-                  </span>
-                )}
               </div>
 
+              {/* Action Buttons with high-contrast, tactile states and loading indicator */}
               {!isResolved && (
                 <div className="plan-approval-actions">
                   {onApprove && (
                     <button
                       type="button"
-                      className="approval-btn approve"
-                      onClick={() => onApprove(approvalRequest)}
+                      className={`approval-btn approve ${submittingAction === 'approve' ? 'is-loading' : ''}`}
+                      onClick={handleApproveClick}
+                      disabled={Boolean(submittingAction)}
+                      aria-label="Approve this sensitive action"
                     >
-                      ✓ Approve
+                      {submittingAction === 'approve' ? (
+                        <>
+                          <span className="btn-spinner"></span>
+                          <span>Approving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="btn-icon">✓</span>
+                          <span>Approve Action</span>
+                        </>
+                      )}
                     </button>
                   )}
+
                   {onReject && (
                     <button
                       type="button"
-                      className="approval-btn reject"
-                      onClick={() => onReject(approvalRequest)}
+                      className={`approval-btn reject ${submittingAction === 'reject' ? 'is-loading' : ''}`}
+                      onClick={handleRejectClick}
+                      disabled={Boolean(submittingAction)}
+                      aria-label="Reject this sensitive action"
                     >
-                      ✕ Reject
+                      {submittingAction === 'reject' ? (
+                        <>
+                          <span className="btn-spinner"></span>
+                          <span>Rejecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="btn-icon">✕</span>
+                          <span>Reject & Cancel</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
@@ -163,7 +285,7 @@ export function LiveTodoProgress({
                     <span className="subagent-icon">{config.icon}</span>
                     <span className="subagent-name">{config.label}</span>
                     <span className="subagent-status-tag">
-                      {isDone ? '✓' : 'in progress'}
+                      {isDone ? '✓' : 'running'}
                     </span>
                   </span>
                 );
@@ -186,6 +308,7 @@ export function LiveTodoProgress({
                       )}
                       {isApproval && '🛡️'}
                       {status === 'pending' && '○'}
+                      {status === 'cancelled' && '✕'}
                     </span>
                     <span className={`todo-text ${status}`}>{todo.text}</span>
                     {isApproval && (
