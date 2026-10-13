@@ -66,8 +66,14 @@ app.post('/api/approval', (req, res) => {
 });
 
 // 2c. Get Active Pending Approval
-app.get('/api/approval/:sessionId?', (req, res) => {
-  const sessionId = req.params?.sessionId || req.query?.sessionId || req.headers['x-session-id'] || 'default';
+app.get('/api/approval', (req, res) => {
+  const sessionId = req.query?.sessionId || req.headers['x-session-id'] || 'default';
+  const pending = getPendingApproval(sessionId);
+  return res.json({ pending });
+});
+
+app.get('/api/approval/:sessionId', (req, res) => {
+  const sessionId = req.params?.sessionId || 'default';
   const pending = getPendingApproval(sessionId);
   return res.json({ pending });
 });

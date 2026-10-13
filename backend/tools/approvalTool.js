@@ -1,6 +1,8 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 
+import { requestApprovalAndWait } from '../agent/approvalManager.js';
+
 /**
  * Zod schema for Human-in-the-Loop approval requests.
  */
@@ -22,9 +24,16 @@ const humanApprovalSchema = z.object({
  */
 export const requestHumanApprovalTool = tool(
   async ({ action, details, estimatedCost }) => {
-    return JSON.stringify({
-      status: 'awaiting_approval',
+    const result = await requestApprovalAndWait({
       action,
+      details,
+      payload: { action, details, estimatedCost },
+    });
+
+    return JSON.stringify({
+      status: result.decision === 'approve' ? 'approved' : 'rejected',
+      action,
+      decision: result.decision,
       cost: estimatedCost || 'N/A',
     });
   },

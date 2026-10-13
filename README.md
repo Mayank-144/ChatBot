@@ -1,15 +1,14 @@
-# Mayank AI Fullstack Chatbot (LangChain + DeepAgents + React 18 + Express + MCP Server)
+# Mayank AI Fullstack Chatbot (LangChain + DeepAgents + React 18 + Express 5 + MCP Server)
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://expressjs.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-Express%205-339933?logo=node.js&logoColor=white)](https://expressjs.com/)
 [![LangChain](https://img.shields.io/badge/Agent-LangChain%20%26%20DeepAgents-1C3C3C?logo=langchain&logoColor=white)](https://js.langchain.com/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP%20SDK-purple?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Groq](https://img.shields.io/badge/AI-Groq%20Cloud-F55036?logo=fastapi&logoColor=white)](https://groq.com/)
-[![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Overview:** An enterprise-ready, autonomous fullstack AI ChatBot combining React 18, Express, LangChain ReAct & DeepAgents, and Model Context Protocol (MCP). Features autonomous planning (`write_todos`), specialist subagents (`task`), real-time SSE streaming, live execution checklists, multimodal vision, and Whisper audio transcription.
+> **Overview:** An enterprise-ready, autonomous fullstack AI ChatBot combining React 18, Express 5, LangChain ReAct & DeepAgents, Model Context Protocol (MCP), and **Human-in-the-Loop (HITL)** approval. Features autonomous planning (`write_todos`), specialized sub-agents delegation (`research-agent`, `utility-agent`, `communication-agent`), genuine backend pause-and-resume approval, real-time SSE streaming, multimodal vision, and Whisper audio transcription.
 
 ---
 
@@ -20,29 +19,30 @@ ChatBot/
 ├── frontend/                          # 🎨 FRONTEND (React 18 + Vite)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Chat/                  # MessageList, MessageItem, LiveTodoProgress, FileCard, EmptyState
+│   │   │   ├── Chat/                  # MessageList, MessageItem, LiveTodoProgress (Plan & HITL Card), FileCard
 │   │   │   ├── Header/                # Header, Theme Toggle, Clear Conversation
 │   │   │   ├── Icons/                 # High-performance SVG Icon components
 │   │   │   └── Input/                 # ChatInput, StagedFiles, DragOverlay
 │   │   ├── hooks/
-│   │   │   ├── useChat.js             # Chat state, typewriter queue & AbortController
+│   │   │   ├── useChat.js             # Chat state, typewriter queue, HITL decision handlers
 │   │   │   ├── useFileUpload.js       # 4-tier attachment picker & drag-and-drop
 │   │   │   └── useTheme.js            # Dark/Light theme state with localStorage persistence
 │   │   ├── services/
-│   │   │   └── api.js                 # Unified SSE streaming fetcher (Todos, Subagents, Tools)
+│   │   │   └── api.js                 # Unified SSE streaming fetcher & approval decision sender
 │   │   ├── utils/
 │   │   │   └── fileParser.js          # In-browser parsers (PDF.js, SheetJS, Mammoth, Canvas)
 │   │   ├── App.jsx                    # Root React Application component
 │   │   ├── App.css                    # Glassmorphism CSS design system & micro-animations
 │   │   └── main.jsx                   # Vite React DOM mount point
-│   ├── .env.example                   # Client environment variables template
 │   ├── vite.config.js                 # Vite dev proxy configuration (/api -> :5000)
 │   └── package.json                   # Frontend dependencies
 │
-├── backend/                           # ⚙️ BACKEND (Node.js + Express API + LangChain + MCP Client)
+├── backend/                           # ⚙️ BACKEND (Node.js + Express 5 API + LangChain + MCP Client)
 │   ├── agent/                         # 🤖 Multi-Tier Agent Core
 │   │   ├── index.js                   # Classic ReAct Agent runner & model factory
-│   │   ├── deepAgent.js               # LangChain DeepAgent runner (Planning, Subagents, StateBackend)
+│   │   ├── deepAgent.js               # Master Deep Planning Coordinator
+│   │   ├── subagents.js               # Specialized Sub-Agents (Research, Utility, Communication)
+│   │   ├── approvalManager.js         # HITL AsyncLocalStorage & Promise pause/resume manager
 │   │   ├── router.js                  # Deterministic Query Router (Simple vs Complex)
 │   │   └── memory.js                  # Windowed In-Memory Session Storage
 │   ├── tools/                         # 🛠️ LangChain Agent Tools
@@ -50,19 +50,19 @@ ChatBot/
 │   │   ├── wikiTool.js                # Wikipedia REST API knowledge lookup
 │   │   ├── calculatorTool.js          # High-precision MCP Calculator wrapper
 │   │   ├── timeTool.js                # High-precision MCP Real-Time Clock wrapper
+│   │   ├── emailTool.js               # prepare_email and send_email (HITL Action Tool)
+│   │   ├── approvalTool.js            # General Human Approval tool wrapper
 │   │   └── index.js                   # Barrel export for all active agent tools
-│   ├── index.js                       # Express Server, SSE Streamer & MCP Client manager
-│   ├── .env.example                   # Server environment variables template
+│   ├── index.js                       # Express Server, SSE Streamer, Approval Routes & MCP Client
 │   └── package.json                   # Backend dependencies
 │
 ├── mcp-server/                        # 🔌 MODEL CONTEXT PROTOCOL (MCP) SERVER
 │   ├── index.js                       # MCP Server with Stdio transport (get_time, calculator)
 │   ├── test-client.js                 # Standalone tester for MCP tool verification
-│   ├── package.json                   # MCP dependencies (@modelcontextprotocol/sdk, zod)
-│   └── README.md                      # MCP configuration and architecture guide
+│   └── package.json                   # MCP dependencies (@modelcontextprotocol/sdk, zod)
 │
-├── api/                               # ⚡ VERCEL SERVERLESS EDGE RUNTIME (Cloud Deployment)
-│   ├── chat.js                        # Edge streaming chat endpoint with direct tool execution
+├── api/                               # ⚡ VERCEL SERVERLESS EDGE RUNTIME
+│   ├── chat.js                        # Edge streaming chat endpoint
 │   ├── transcribe.js                  # Edge Whisper audio transcription endpoint
 │   └── health.js                      # Edge health check endpoint
 │
@@ -73,89 +73,120 @@ ChatBot/
 
 ---
 
-## 🔀 Intelligent Multi-Tier Agent Execution
+## 🔀 Deep Agent Workflow & HITL Architecture
 
 ```
-                       User Prompt
-                            │
-                            ▼
-                    POST /api/chat
-                            │
-                            ▼
-              backend/agent/router.js
-                            │
-            ┌───────────────┴───────────────┐
-            ▼                               ▼
-    [Simple / Direct Query]        [Complex / Multi-Step Task]
-            │                               │
-    Classic ReAct Agent            LangChain DeepAgent
-  (backend/agent/index.js)       (backend/agent/deepAgent.js)
-            │                               │
-            │                  ┌────────────┴────────────┐
-            │                  ▼                         ▼
-            │            write_todos                 task tool
-            │         (Dynamic Checklist)       (Specialist Subagents)
-            │                                            │
-            │                                 ┌──────────┴──────────┐
-            │                                 ▼                     ▼
-            │                          research-agent        math-time-agent
-            │                         (Wiki + Weather)     (Calculator + Clock)
-            │                                 │                     │
-            └─────────────────┬───────────────┴─────────────────────┘
-                              ▼
-                Server-Sent Events (SSE) Stream
-              (Data: Tokens, Todos, Subagents, Badges)
-                              ▼
-                 Frontend Live Progress UI
+User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare email summary."
+                                    │
+                                    ▼
+                             POST /api/chat
+                                    │
+                                    ▼
+                         backend/agent/router.js
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+            [Simple Query]                   [Complex Query]
+                    │                               │
+            Classic ReAct Agent             Main Deep Agent Coordinator
+                    │                               │
+                    │               1. Mandatory Plan ('write_todos')
+                    │                  (Broadcasts live checklist to UI)
+                    │                               │
+                    │               2. Specialized Sub-Agent Delegation
+                    │                  ┌────────────┬────────────┐
+                    │                  ▼            ▼            ▼
+                    │            Research       Utility     Communication
+                    │              Agent         Agent          Agent
+                    │             (Wiki)     (Weather+Math)  (Draft Email)
+                    │                  └────────────┬────────────┘
+                    │                               │
+                    │               3. Sensitive Action ('send_email')
+                    │                               │
+                    │                  backend/agent/approvalManager.js
+                    │               ┌───────────────┴───────────────┐
+                    │               ▼                               ▼
+                    │        [GENUINE PAUSE]              Broadcast Approval Event
+                    │     (Node Promise halts)            over SSE to Frontend UI
+                    │                                               │
+                    │                                               ▼
+                    │                                    Frontend displays Card
+                    │                                   [✓ Approve]  [✕ Reject]
+                    │                                               │
+                    │               4. User Decision Received       │
+                    │                  (POST /api/approval)         │
+                    │                               ◄───────────────┘
+                    │               ┌───────────────┴───────────────┐
+                    │               ▼                               ▼
+                    │         [User Approves]                 [User Rejects]
+                    │        Action Executed                 Action Cancelled
+                    │        (Email is sent)                 (Email cancelled)
+                    │               └───────────────┬───────────────┘
+                    │                               │
+                    │               5. Synthesize Final Report
+                    │                  (Stream final response chunks)
+                    │                               │
+                    └───────────────────────────────┴───────────────┐
+                                                                    ▼
+                                                            Frontend Displays
+                                                           Final Comprehensive
+                                                               Markdown Answer
 ```
 
 ---
 
-## 🛠️ Autonomous Tools & Protocol Integrations
+## 🛠️ Autonomous Tools & Sub-Agents
 
-| Tool Name | Engine / Transport | Domain | Capability |
+| Agent / Tool Name | Domain / Subagent | Engine / API | Capability |
 | :--- | :--- | :--- | :--- |
-| `get_weather` | OpenWeatherMap REST API | Weather & Climate | Live temperatures, humidity, wind speed, condition |
-| `wikipedia_search` | Wikipedia REST API | Encyclopedia Knowledge | Biographies, scientific principles, historical events |
-| `calculator` | MCP (Stdio Client) | Precision Math | High-precision arithmetic (Add, Subtract, Multiply, Divide) |
-| `get_time` | MCP (Stdio Client) | Real-time Clock | Exact timestamps, current local time and timezone |
-| `write_todos` | DeepAgents Core | Task Planning | Dynamic checklist creation, progress tracking |
-| `task` | DeepAgents Subagents | Delegation | Isolated domain execution with specialist subagents |
+| `write_todos` | Master Coordinator | LangChain Tool | Dynamic checklist creation and progress tracking |
+| `delegate_to_research_agent` | **Research Agent** | Wikipedia REST API | Encyclopedic research, facts, history, city information |
+| `delegate_to_utility_agent` | **Utility Agent** | OpenWeatherMap + MCP | Live weather lookups, arithmetic calculations, clock time |
+| `delegate_to_communication_agent` | **Communication Agent**| Email Drafting Engine | Formats and structures professional email summaries |
+| `send_email` | Sensitive HITL Action | Approval Manager | **Pauses backend execution**; waits for human Approve/Reject |
+| `calculator` | Utility Specialist | MCP (Stdio Client) | High-precision arithmetic (Add, Subtract, Multiply, Divide) |
+| `get_time` | Utility Specialist | MCP (Stdio Client) | Real-time timestamps and local timezone |
+| `get_weather` | Utility Specialist | OpenWeatherMap API | Real-time temperature, humidity, wind, conditions |
 
 ---
 
 ## ✨ Core Features & Highlights
 
-### 1. 🧠 Dynamic Planning & Live Checklists
-- Breaks down complex, multi-domain prompts into clear, trackable step-by-step goals with `write_todos`.
-- Streams progress in real-time to the frontend (`LiveTodoProgress.jsx`) with animated indicators.
+### 1. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause
+- Sensitive tools like `send_email` genuinely pause the Node.js event loop using `AsyncLocalStorage` and Promise hooks in `approvalManager.js`.
+- The frontend immediately displays an interactive **Human Approval Card** with draft preview (`To:`, `Subject:`, `Body:`) and two actionable buttons:
+  - **`[✓ Approve]`**: Resumes backend execution, marks action approved, and completes execution.
+  - **`[✕ Reject]`**: Safely cancels the action and resumes the agent to deliver the report without performing the sensitive action.
+- Zero fake approval: The backend genuinely waits for the decision.
 
-### 2. 🤖 Isolated Specialist Subagents
-- **Research Agent**: Dedicated to Wikipedia factual analysis and weather reports.
-- **Math & Time Agent**: Dedicated to numeric computations and real-time clock retrieval.
-- Subagent internal tokens are filtered out from the main coordinator output, streaming only the final synthesised response to the user.
+### 2. 🤖 Specialized Sub-Agents (Task Delegation)
+- **Research Agent**: Handles deep encyclopedic research, definitions, and city facts.
+- **Utility Agent**: Combines arithmetic expressions, real-time clock timestamps, and live weather conditions.
+- **Communication Agent**: Prepares clean, professional email drafts summarizing multi-step findings.
+- Real-time sub-agent badges (`research-agent`, `utility-agent`, `communication-agent`) stream live to the UI as they run.
 
-### 3. 🔌 Official Model Context Protocol (MCP) Integration
-- Direct integration using `@modelcontextprotocol/sdk` via Stdio transport.
-- Decouples tool execution from the backend application for zero-hallucination math and clock data.
+### 3. 🧠 Autonomous Dynamic Planning (`write_todos`)
+- Breaks complex multi-step queries into a numbered checklist.
+- Updates status in real-time (`in_progress`, `completed`, `awaiting_approval`).
 
-### 4. 🖼️ Multimodal Vision & Audio
-- 📸 **Vision AI**: Analyzes photos, diagrams, and screenshots via `qwen/qwen3.8-27b`.
-- 🎙️ **Audio Transcription**: In-browser recording and audio file parsing via **Groq Whisper Large V3 Turbo**.
+### 4. 🔌 Model Context Protocol (MCP) Integration
+- Direct connection via `@modelcontextprotocol/sdk` on Stdio transport for deterministic, zero-hallucination calculations and system clock timestamps.
+
+### 5. 🖼️ Multimodal Vision & Audio
+- 📸 **Vision AI**: Analyzes photos, diagrams, and screenshots.
+- 🎙️ **Audio Transcription**: In-browser microphone recording and audio file parsing powered by **Groq Whisper Large V3 Turbo**.
 - 📄 **Document Extraction**: In-browser client-side parsing for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
-
-### 5. 🛡️ Robust Error Recovery & Resilience
-- Gracefully handles Groq 429 rate limits with exponential backoff and retry.
-- Automatic fallback from DeepAgent to classic ReAct agent if unexpected formatting issues occur.
 
 ---
 
-## 🔗 Backend Endpoints
+## 🔗 Backend API Endpoints
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/api/health` | `GET` | Health status, active models, DeepAgent status, and tool list |
-| `/api/chat` | `POST` | Primary SSE chat completions stream with multi-tier routing |
+| `/api/health` | `GET` | Health check, active models, DeepAgent status, and tool availability |
+| `/api/chat` | `POST` | Primary Server-Sent Events (SSE) chat completions stream with multi-tier routing |
+| `/api/approval` | `POST` | Resolves pending human approval (`approvalId`, `sessionId`, `decision: 'approve' \| 'reject'`) |
+| `/api/approval/:sessionId` | `GET` | Queries active pending approvals for a session |
 | `/api/transcribe` | `POST` | Whisper speech-to-text audio transcription |
 | `/api/memory/clear` | `POST` | Clear conversation memory for a session ID |
 | `/api/mcp/tools` | `GET` | Inspect connected Model Context Protocol tools |
@@ -167,7 +198,7 @@ ChatBot/
 ## 🚀 Getting Started
 
 ### 1. Environment Setup
-Create a `.env` file in the `backend/` directory:
+Configure your `backend/.env` file:
 ```env
 PORT=5000
 GROQ_API_KEY=your_groq_api_key_here
@@ -192,6 +223,22 @@ npm run dev
 - **Frontend Only**: `npm run frontend`
 - **MCP Test Client**: `node mcp-server/test-client.js`
 - **Build Frontend Bundle**: `npm run build`
+
+---
+
+## 🧪 Demonstration Query
+
+Try pasting this query in the chat:
+```text
+Find information about Indore, check its current weather, calculate 25 × 4, and prepare an email containing the summary.
+```
+
+**What you will see:**
+1. A live **Plan Checklist** generated with `write_todos`.
+2. **Sub-agents** running in sequence (`research-agent` → `utility-agent` → `communication-agent`).
+3. An **Approval Card** prompting for human decision with email draft preview.
+4. Clicking **[Approve]** sends the email; clicking **[Reject]** cancels it safely.
+5. The final synthesized Markdown response formatted with all findings!
 
 ---
 
