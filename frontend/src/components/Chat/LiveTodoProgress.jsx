@@ -5,6 +5,14 @@ const SUBAGENT_CONFIG = {
     label: 'Research Specialist',
     icon: '🔍',
   },
+  'utility-agent': {
+    label: 'Utility Specialist',
+    icon: '⏱️',
+  },
+  'communication-agent': {
+    label: 'Communication Specialist',
+    icon: '✉️',
+  },
   'math-time-agent': {
     label: 'Math & Time Specialist',
     icon: '⏱️',
@@ -16,6 +24,7 @@ export function LiveTodoProgress({
   subagents = [],
   approvalRequest = null,
   onApprove = null,
+  onReject = null,
   isStreaming = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -33,6 +42,7 @@ export function LiveTodoProgress({
   const awaitingCount = todos.filter((t) => t.status === 'awaiting_approval').length;
   const totalCount = todos.length;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
+  const isResolved = Boolean(approvalRequest?.resolvedStatus);
 
   return (
     <div className={`plan-progress-card ${hasApproval ? 'needs-approval' : ''}`}>
@@ -76,33 +86,59 @@ export function LiveTodoProgress({
         <div className="plan-progress-content">
           {/* Human-in-the-Loop Approval Action Banner */}
           {hasApproval && (
-            <div className="plan-approval-banner">
+            <div className={`plan-approval-banner ${isResolved ? 'resolved' : ''}`}>
               <div className="plan-approval-info">
-                <span className="plan-approval-badge">🛡️ Action Requires Confirmation</span>
+                <div className="plan-approval-header-row">
+                  <span className="plan-approval-badge">🛡️ Action Requires Human Approval</span>
+                  {isResolved && (
+                    <span className={`plan-approval-status-tag ${approvalRequest.resolvedStatus}`}>
+                      {approvalRequest.resolvedStatus === 'approved' ? '✓ Approved' : '✕ Rejected / Cancelled'}
+                    </span>
+                  )}
+                </div>
                 <p className="plan-approval-desc">
                   {approvalRequest?.action ||
-                    'Please review and approve the final subtask execution before the agent proceeds.'}
+                    'Please review and approve the sensitive action before execution.'}
                 </p>
+
+                {/* Email Draft Preview if applicable */}
+                {approvalRequest?.payload?.to && (
+                  <div className="approval-email-preview">
+                    <div className="approval-email-row"><strong>To:</strong> {approvalRequest.payload.to}</div>
+                    <div className="approval-email-row"><strong>Subject:</strong> {approvalRequest.payload.subject}</div>
+                    {approvalRequest.payload.body && (
+                      <div className="approval-email-body">{approvalRequest.payload.body}</div>
+                    )}
+                  </div>
+                )}
+
                 {approvalRequest?.estimatedCost && approvalRequest.estimatedCost !== 'N/A' && (
                   <span className="plan-approval-cost">
                     Budget / Cost: <strong>₹{approvalRequest.estimatedCost}</strong>
                   </span>
                 )}
               </div>
-              {onApprove && (
+
+              {!isResolved && (
                 <div className="plan-approval-actions">
-                  <button
-                    type="button"
-                    className="approval-btn approve"
-                    onClick={() => {
-                      const text = approvalRequest?.action
-                        ? `Approved: Proceed with "${approvalRequest.action}".`
-                        : 'Approved: Proceed with executing the finalized plan.';
-                      onApprove(text);
-                    }}
-                  >
-                    ✓ Approve & Continue
-                  </button>
+                  {onApprove && (
+                    <button
+                      type="button"
+                      className="approval-btn approve"
+                      onClick={() => onApprove(approvalRequest)}
+                    >
+                      ✓ Approve
+                    </button>
+                  )}
+                  {onReject && (
+                    <button
+                      type="button"
+                      className="approval-btn reject"
+                      onClick={() => onReject(approvalRequest)}
+                    >
+                      ✕ Reject
+                    </button>
+                  )}
                 </div>
               )}
             </div>

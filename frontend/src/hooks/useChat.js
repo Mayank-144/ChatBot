@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { sendChatMessage } from '../services/api';
+import { sendChatMessage, submitApprovalDecision } from '../services/api';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const createSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -299,6 +299,78 @@ export function useChat() {
     setLoading(false);
   };
 
+  const handleApprove = async (approvalReq) => {
+    const approvalId = approvalReq?.approvalId;
+    setMessages((prev) =>
+      prev.map((m) =>
+        (approvalId && m.approvalRequest?.approvalId === approvalId) || (!approvalId && m.approvalRequest)
+          ? {
+              ...m,
+              approvalRequest: {
+                ...m.approvalRequest,
+                resolvedStatus: 'approved',
+              },
+            }
+          : m
+      )
+    );
+
+    if (approvalId) {
+      try {
+        await submitApprovalDecision({
+          approvalId,
+          sessionId,
+          decision: 'approve',
+        });
+      } catch (err) {
+        console.warn('Approval decision submit warning:', err);
+      }
+    }
+
+    if (!loading) {
+      const text = approvalReq?.action
+        ? `Approve: Proceed with "${approvalReq.action}".`
+        : 'Approve: Proceed with the action.';
+      handleSend({}, text);
+    }
+  };
+
+  const handleReject = async (approvalReq) => {
+    const approvalId = approvalReq?.approvalId;
+    setMessages((prev) =>
+      prev.map((m) =>
+        (approvalId && m.approvalRequest?.approvalId === approvalId) || (!approvalId && m.approvalRequest)
+          ? {
+              ...m,
+              approvalRequest: {
+                ...m.approvalRequest,
+                resolvedStatus: 'rejected',
+              },
+            }
+          : m
+      )
+    );
+
+    if (approvalId) {
+      try {
+        await submitApprovalDecision({
+          approvalId,
+          sessionId,
+          decision: 'reject',
+        });
+      } catch (err) {
+        console.warn('Approval reject submit warning:', err);
+      }
+    }
+
+    if (!loading) {
+      const text = approvalReq?.action
+        ? `Reject: Cancel "${approvalReq.action}". Do not execute it.`
+        : 'Reject: Cancel this action.';
+      handleSend({}, text);
+    }
+  };
+
   return {
     sessionId,
     messages,
@@ -310,6 +382,8 @@ export function useChat() {
     handleStop,
     handleClearChat,
     handleCopy,
+    handleApprove,
+    handleReject,
   };
 }
 

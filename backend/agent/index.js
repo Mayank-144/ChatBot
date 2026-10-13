@@ -44,7 +44,7 @@ export function getGroqModel(options = {}) {
     apiKey,
     model: modelName,
     temperature,
-    maxRetries: 3,
+    maxRetries: 7,
   });
 }
 

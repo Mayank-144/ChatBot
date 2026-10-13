@@ -10,6 +10,7 @@ import { runDeepAgent } from './agent/deepAgent.js';
 import { routeQuery } from './agent/router.js';
 import { agentTools, setMcpClient } from './tools/index.js';
 import { clearSessionHistory } from './agent/memory.js';
+import { resolveApproval, getPendingApproval } from './agent/approvalManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +52,24 @@ app.post('/api/memory/clear', (req, res) => {
   const sessionId = req.body?.sessionId || req.headers['x-session-id'] || 'default';
   const cleared = clearSessionHistory(sessionId);
   return res.json({ success: true, cleared, sessionId });
+});
+
+// 2b. Human-in-the-Loop (HITL) Decision Endpoint
+app.post('/api/approval', (req, res) => {
+  const { approvalId, sessionId, decision } = req.body || {};
+  if (!decision || !['approve', 'reject', 'approved', 'rejected'].includes(decision)) {
+    return res.status(400).json({ error: 'Valid decision ("approve" or "reject") is required.' });
+  }
+
+  const result = resolveApproval({ approvalId, sessionId, decision });
+  return res.json(result);
+});
+
+// 2c. Get Active Pending Approval
+app.get('/api/approval/:sessionId?', (req, res) => {
+  const sessionId = req.params?.sessionId || req.query?.sessionId || req.headers['x-session-id'] || 'default';
+  const pending = getPendingApproval(sessionId);
+  return res.json({ pending });
 });
 
 // 3. Chat Completions Streaming Endpoint (LangChain Agent + Vision Routing)

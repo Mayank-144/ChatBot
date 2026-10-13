@@ -10,7 +10,14 @@ import {
   wikiTool,
   calculatorTool,
   timeTool,
+  sendEmailTool,
+  prepareEmailTool,
 } from '../tools/index.js';
+import {
+  subagentDelegationTools,
+  setSubagentEventListener,
+} from './subagents.js';
+import { approvalContext } from './approvalManager.js';
 
 /**
  * Zod schema and LangChain tool for write_todos task planning.
@@ -42,45 +49,30 @@ export const writeTodosTool = tool(
 /**
  * Deep Agent System Prompt defining planning, delegation, and reasoning behavior.
  */
-export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI (Deep Planning Assistant).
-You excel at breaking down complex, multi-part questions, creating structured plans, executing tools systematically, and integrating Human-in-the-Loop approval workflows.
+export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI, a Master Deep Planning Coordinator.
+You orchestrate complex goals: analyze requests, formulate structured execution plans with 'write_todos', delegate subtasks to specialized sub-agents, pause for Human-in-the-Loop (HITL) approval, and synthesize the final response.
 
-Capabilities & Protocols:
-1. MANDATORY SUBTASKING with 'write_todos':
-   - For ANY multi-part, planning, or compound query, you MUST ALWAYS call 'write_todos' in your first turn to output your numbered list of subtasks.
-   - Example:
-     write_todos({
-       todos: [
-         { id: 1, text: "Check live weather in Jaipur", status: "in_progress" },
-         { id: 2, text: "Calculate hotel and flight costs", status: "in_progress" },
-         { id: 3, text: "Obtain human approval before finalizing booking", status: "awaiting_approval" }
-       ]
-     })
-   - Mark normal tasks as 'in_progress' or 'completed'.
-   - Mark any critical, booking, payment, or confirmation step as 'awaiting_approval'.
-   - Call 'write_todos' once at the start, do not call it in an infinite loop.
+Execution Protocols:
+1. INITIAL PLANNING & BATCH DELEGATION (Turn 1):
+   - In your very first turn, establish your plan and dispatch tasks to specialized subagents together:
+     * Call 'write_todos' with the subtasks checklist:
+       [{ id: 1, text: "Research Indore information via Research Agent", status: "in_progress" },
+        { id: 2, text: "Check weather and calculate 25 × 4 via Utility Agent", status: "in_progress" },
+        { id: 3, text: "Draft email summary via Communication Agent", status: "in_progress" },
+        { id: 4, text: "Human Approval: Send email with summary", status: "awaiting_approval" }]
+     * Call 'delegate_to_research_agent' with { query: "Indore" }
+     * Call 'delegate_to_utility_agent' with { task: "Check weather in Indore and calculate 25 * 4" }
 
-2. Human Approval Protocol ('request_human_approval'):
-   - When a plan involves finalizing trip bookings, high expenses, ticket reservations, or when the user asks for approval:
-     * Call 'request_human_approval' with action, details, and estimatedCost.
-     * Ensure the matching subtask in 'write_todos' is marked 'awaiting_approval'.
-     * In your final response, summarize the plan and explicitly ask the user for confirmation.
+2. DRAFT & HITL HUMAN APPROVAL (Turn 2):
+   - With findings gathered from Research and Utility agents:
+     * Call 'delegate_to_communication_agent' with { to: "team@example.com", subject: "Indore Summary & Report", body: "..." }
+     * Call 'send_email' with { to: "team@example.com", subject: "Indore Summary & Report", body: "..." }
+   - 'send_email' is a sensitive action that automatically PAUSES backend execution and requests explicit human approval (Approve or Reject).
 
-3. Ultra-Lean Tool Execution (Token Safety):
-   - Parallel Execution: Invoke all required tool calls (e.g. write_todos, get_weather, calculator) together in parallel in Turn 1 to prevent multiple LLM roundtrips and token bloat.
-   - Do NOT search Wikipedia or URLs unnecessarily if not explicitly requested by the user.
-   - Use 'get_weather' for weather reports.
-   - Use 'wikipedia_search' strictly for brief factual lookups when explicitly requested.
-   - Use 'calculator' for exact arithmetic calculations.
-   - Use 'get_time' for current time.
-
-4. Final Synthesis & Language Rule:
-   - Directly synthesize all tool findings into a clean, beautifully formatted Markdown response.
-   - LANGUAGE RULE (STRICT):
-     * If user writes in English, respond in English.
-     * If user writes in Hinglish (Hindi written in Latin/English letters), respond in natural Hinglish or English using Latin letters. Never use Devanagari script unless explicitly requested.
-     * ONLY use Devanagari Hindi script if the user writes in Devanagari Hindi or asks "hindi me batao".
-   - State calculation totals, approval checkpoints, and key takeaways clearly.`;
+3. FINAL SYNTHESIS:
+   - Provide a clean, well-formatted Markdown report of all findings (Indore facts, weather, math calculation, and email approval status).
+   - If user writes in English, reply in English.
+   - If user writes in Hinglish, reply in natural Hinglish or English using Latin letters. Never reply in Devanagari Hindi unless asked.`;
 
 /**
  * Normalizes raw todo input/output into a structured, predictable format:
@@ -185,15 +177,19 @@ export function getOrCreateDeepAgent() {
   }
 
   const mainLlm = getGroqModel({
-    modelName: process.env.GROQ_DEEP_MODEL || process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
+    modelName: process.env.GROQ_DEEP_MODEL || process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     temperature: 0.2,
   });
 
-  // Create Deep Agent with planning (write_todos) and direct tool execution.
-  // Uses createReactAgent with write_todos schema to avoid excessive token overhead.
+  // Tools available to the Main Deep Agent coordinator:
+  // Planning (write_todos) + Specialized Sub-Agent Delegation + HITL actions (send_email)
   cachedDeepAgent = createReactAgent({
     llm: mainLlm,
-    tools: [writeTodosTool, ...agentTools],
+    tools: [
+      writeTodosTool,
+      ...subagentDelegationTools,
+      sendEmailTool,
+    ],
     messageModifier: new SystemMessage(DEEP_AGENT_SYSTEM_PROMPT),
   });
 
@@ -229,10 +225,17 @@ export async function runDeepAgent({
   onApprovalRequest = null,
   recursionLimit = 25,
 }) {
-  const notifyToken = onToken || onChunk;
-  const notifyToolStart = onToolStart || onToolCall;
-  const notifyTodoUpdate = onTodoUpdate || onTodos;
-  const agent = getOrCreateDeepAgent();
+  return approvalContext.run(
+    { sessionId, onApprovalRequest },
+    async () => {
+      if (onSubagentEvent) {
+        setSubagentEventListener(onSubagentEvent);
+      }
+
+      const notifyToken = onToken || onChunk;
+      const notifyToolStart = onToolStart || onToolCall;
+      const notifyTodoUpdate = onTodoUpdate || onTodos;
+      const agent = getOrCreateDeepAgent();
   const rawPastMessages = await getSessionMessages(sessionId);
   const pastMessages = rawPastMessages.slice(-2).map((m) => {
     if (typeof m.content === 'string' && m.content.length > 350) {
@@ -291,19 +294,18 @@ export async function runDeepAgent({
             notifyToolStart(toolData);
           }
 
-          // Check if subagent task tool started
-          if (event.name === 'task') {
+          // Check if subagent task tool or delegation tool started
+          if (event.name === 'task' || event.name.startsWith('delegate_to_')) {
             activeSubagentCount++;
-            const subagentName =
-              event.data?.input?.subagent_type ||
-              event.data?.input?.subagent ||
-              'subagent';
+            const subagentName = event.name.startsWith('delegate_to_')
+              ? event.name.replace('delegate_to_', '').replace(/_/g, '-')
+              : (event.data?.input?.subagent_type || event.data?.input?.subagent || 'subagent');
             currentSubagentName = subagentName;
             if (onSubagentEvent) {
               onSubagentEvent({
                 name: subagentName,
-                status: 'start',
-                task: event.data?.input?.description || '',
+                status: 'running',
+                task: event.data?.input?.task || event.data?.input?.description || '',
               });
             }
           }
@@ -333,14 +335,14 @@ export async function runDeepAgent({
             onToolEnd(toolData);
           }
 
-          // Check if subagent task tool ended
-          if (event.name === 'task') {
+          // Check if subagent task tool or delegation tool ended
+          if (event.name === 'task' || event.name.startsWith('delegate_to_')) {
             activeSubagentCount = Math.max(0, activeSubagentCount - 1);
             const subagentName =
               currentSubagentName ||
-              event.data?.output?.subagent_type ||
-              event.data?.output?.subagent ||
-              'subagent';
+              (event.name.startsWith('delegate_to_')
+                ? event.name.replace('delegate_to_', '').replace(/_/g, '-')
+                : 'subagent');
             if (onSubagentEvent) {
               onSubagentEvent({
                 name: subagentName,
@@ -415,14 +417,14 @@ export async function runDeepAgent({
         err?.cause?.message?.includes('429');
 
       if (isRateLimit && attempt < maxAttempts) {
-        let waitMs = 15000;
+        let waitMs = 45000;
         const fullErrStr = `${err} ${err?.message || ''} ${err?.cause?.message || ''} ${JSON.stringify(err?.error || {})} ${JSON.stringify(err?.cause || {})}`;
         const matchSec = fullErrStr.match(/try again in ([\d\.]+)\s*s\b/i);
         const matchMs = fullErrStr.match(/try again in ([\d\.]+)\s*ms\b/i);
         if (matchSec) {
-          waitMs = Math.max(14000, Math.ceil(parseFloat(matchSec[1]) * 1000) + 2500);
+          waitMs = Math.max(45000, Math.ceil(parseFloat(matchSec[1]) * 1000) + 3000);
         } else if (matchMs) {
-          waitMs = Math.max(14000, Math.ceil(parseFloat(matchMs[1])) + 2500);
+          waitMs = Math.max(45000, Math.ceil(parseFloat(matchMs[1])) + 3000);
         }
         console.warn(`⏳ Groq 429 rate limit (attempt ${attempt}/${maxAttempts}): ${err?.message || ''}. Backing off ${waitMs}ms before retry...`);
         await new Promise((r) => setTimeout(r, waitMs));
@@ -453,13 +455,15 @@ export async function runDeepAgent({
     onTodoUpdate(finalized);
   }
 
-  // Record completed turn into session memory
-  await recordTurn(sessionId, input, finalContent);
+    // Record completed turn into session memory
+    await recordTurn(sessionId, input, finalContent);
 
-  return {
-    output: finalContent,
-    toolCalls,
-  };
+    return {
+      output: finalContent,
+      toolCalls,
+    };
+  }
+  );
 }
 
 export default {

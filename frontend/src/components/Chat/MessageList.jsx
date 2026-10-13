@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { EmptyState } from './EmptyState';
 import { MessageItem } from './MessageItem';
 
-export function MessageList({ messages, loading, copiedIndex, onCopy, onApprove }) {
+export function MessageList({ messages, loading, copiedIndex, onCopy, onApprove, onReject }) {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -21,6 +21,7 @@ export function MessageList({ messages, loading, copiedIndex, onCopy, onApprove 
           copiedIndex={copiedIndex}
           onCopy={onCopy}
           onApprove={onApprove}
+          onReject={onReject}
         />
       ))}
 

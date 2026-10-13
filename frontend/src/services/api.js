@@ -159,3 +159,34 @@ export async function sendChatMessage({
     if (onError) onError(error);
   }
 }
+
+/**
+ * Submit user approval or rejection decision to backend
+ * @param {Object} params
+ * @param {string} params.approvalId - The approval request ID
+ * @param {string} params.sessionId - Active session ID
+ * @param {'approve' | 'reject'} params.decision - Human decision
+ * @returns {Promise<Object>}
+ */
+export async function submitApprovalDecision({ approvalId, sessionId = 'default', decision }) {
+  const response = await fetch('/api/approval', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Session-ID': sessionId,
+    },
+    body: JSON.stringify({
+      approvalId,
+      sessionId,
+      decision,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to submit approval decision');
+  }
+
+  return response.json();
+}
+

@@ -40,14 +40,12 @@ function App() {
     handleStop,
     handleClearChat,
     handleCopy,
+    handleApprove,
+    handleReject,
   } = useChat();
 
   const onSend = () => {
     handleSend({ stagedFiles, clearStagedFiles });
-  };
-
-  const handleApprove = (approvalText) => {
-    handleSend({ stagedFiles: [], clearStagedFiles: null }, approvalText);
   };
 
   const onClear = (e) => {
@@ -118,6 +116,7 @@ function App() {
           copiedIndex={copiedIndex}
           onCopy={handleCopy}
           onApprove={handleApprove}
+          onReject={handleReject}
         />
 
         <ChatInput
