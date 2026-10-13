@@ -25,14 +25,6 @@ const TOOL_CONFIG = {
     icon: '🛡️',
     label: 'Human Approval',
   },
-  send_email: {
-    icon: '✉️',
-    label: 'Email Action',
-  },
-  prepare_email: {
-    icon: '📝',
-    label: 'Email Draft',
-  },
   delegate_to_research_agent: {
     icon: '🔍',
     label: 'Research Agent',
@@ -40,10 +32,6 @@ const TOOL_CONFIG = {
   delegate_to_utility_agent: {
     icon: '⏱️',
     label: 'Utility Agent',
-  },
-  delegate_to_communication_agent: {
-    icon: '✉️',
-    label: 'Communication Agent',
   },
 };
 

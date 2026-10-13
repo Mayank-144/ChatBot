@@ -37,9 +37,8 @@ const PLANNING_PATTERNS = [
   /\btodo\b/i,
   /\bdetailed analysis\b/i,
   /\bdeep research\b/i,
-  /\bprepare (an? )?email\b/i,
-  /\bsend (an? )?email\b/i,
-  /\bdraft (an? )?email\b/i,
+  /\bapproval\b/i,
+  /\bapprove\b/i,
 ];
 
 /**
@@ -54,15 +53,6 @@ function hasMultipleTasks(text) {
 
   // Check for numbered lists: "1. Do this 2. Do that"
   if (/\b1[\.\)]\s+.+\b2[\.\)]\s+/s.test(text)) return true;
-
-  // Check for email combined with research or calculation
-  const hasEmailIntent = /(email|mail|draft|prepare.*summary)/i.test(text);
-  const hasResearchIntent = /(indore|weather|mausam|temp|wikipedia|information|facts|who is)/i.test(text);
-  const hasMathIntent = /(\d+[\+\-\*\/×x]\d+|calculate|time)/i.test(text);
-
-  if (hasEmailIntent && (hasResearchIntent || hasMathIntent)) {
-    return true;
-  }
 
   // Check for multiple task conjunctions: e.g. "Delhi ka weather batao aur 25*4 calculate karo"
   const hasToolIntent1 = /(weather|mausam|temp|turing|newton|wikipedia|kya hai)/i.test(text);

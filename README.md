@@ -50,8 +50,7 @@ ChatBot/
 │   │   ├── wikiTool.js                # Wikipedia REST API knowledge lookup
 │   │   ├── calculatorTool.js          # High-precision MCP Calculator wrapper
 │   │   ├── timeTool.js                # High-precision MCP Real-Time Clock wrapper
-│   │   ├── emailTool.js               # prepare_email and send_email (HITL Action Tool)
-│   │   ├── approvalTool.js            # General Human Approval tool wrapper
+│   │   ├── approvalTool.js            # General Human Approval tool wrapper (HITL Action Tool)
 │   │   └── index.js                   # Barrel export for all active agent tools
 │   ├── index.js                       # Express Server, SSE Streamer, Approval Routes & MCP Client
 │   └── package.json                   # Backend dependencies
@@ -142,8 +141,7 @@ User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare e
 | `write_todos` | Master Coordinator | LangChain Tool | Dynamic checklist creation and progress tracking |
 | `delegate_to_research_agent` | **Research Agent** | Wikipedia REST API | Encyclopedic research, facts, history, city information |
 | `delegate_to_utility_agent` | **Utility Agent** | OpenWeatherMap + MCP | Live weather lookups, arithmetic calculations, clock time |
-| `delegate_to_communication_agent` | **Communication Agent**| Email Drafting Engine | Formats and structures professional email summaries |
-| `send_email` | Sensitive HITL Action | Approval Manager | **Pauses backend execution**; waits for human Approve/Reject |
+| `request_human_approval` | Sensitive HITL Action | Approval Manager | **Pauses backend execution**; waits for human Approve/Reject |
 | `calculator` | Utility Specialist | MCP (Stdio Client) | High-precision arithmetic (Add, Subtract, Multiply, Divide) |
 | `get_time` | Utility Specialist | MCP (Stdio Client) | Real-time timestamps and local timezone |
 | `get_weather` | Utility Specialist | OpenWeatherMap API | Real-time temperature, humidity, wind, conditions |
@@ -153,17 +151,16 @@ User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare e
 ## ✨ Core Features & Highlights
 
 ### 1. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause
-- Sensitive tools like `send_email` genuinely pause the Node.js event loop using `AsyncLocalStorage` and Promise hooks in `approvalManager.js`.
-- The frontend immediately displays an interactive **Human Approval Card** with draft preview (`To:`, `Subject:`, `Body:`) and two actionable buttons:
-  - **`[✓ Approve]`**: Resumes backend execution, marks action approved, and completes execution.
-  - **`[✕ Reject]`**: Safely cancels the action and resumes the agent to deliver the report without performing the sensitive action.
-- Zero fake approval: The backend genuinely waits for the decision.
+- Critical and sensitive operations genuinely pause execution using `AsyncLocalStorage` and Promise hooks in `approvalManager.js`.
+- The frontend displays an interactive **Human Approval Card** with action details and two actionable buttons:
+  - **`[✓ Approve Action]`**: Resumes backend execution, marks action approved, and completes execution.
+  - **`[✕ Reject & Cancel]`**: Safely cancels the action and resumes the agent to deliver the report without performing the sensitive action.
+- Zero fake approval: The backend genuinely waits for the human decision.
 
 ### 2. 🤖 Specialized Sub-Agents (Task Delegation)
 - **Research Agent**: Handles deep encyclopedic research, definitions, and city facts.
 - **Utility Agent**: Combines arithmetic expressions, real-time clock timestamps, and live weather conditions.
-- **Communication Agent**: Prepares clean, professional email drafts summarizing multi-step findings.
-- Real-time sub-agent badges (`research-agent`, `utility-agent`, `communication-agent`) stream live to the UI as they run.
+- Real-time sub-agent badges (`research-agent`, `utility-agent`) stream live to the UI as they run.
 
 ### 3. 🧠 Autonomous Dynamic Planning (`write_todos`)
 - Breaks complex multi-step queries into a numbered checklist.

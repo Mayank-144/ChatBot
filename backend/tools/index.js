@@ -3,7 +3,6 @@ import { wikiTool } from './wikiTool.js';
 import { calculatorTool, setMcpClient } from './calculatorTool.js';
 import { timeTool } from './timeTool.js';
 import { requestHumanApprovalTool } from './approvalTool.js';
-import { prepareEmailTool, sendEmailTool } from './emailTool.js';
 
 /**
  * Array of all active LangChain agent tools.
@@ -14,8 +13,6 @@ export const agentTools = [
   calculatorTool,
   timeTool,
   requestHumanApprovalTool,
-  prepareEmailTool,
-  sendEmailTool,
 ];
 
 export {
@@ -24,8 +21,6 @@ export {
   calculatorTool,
   timeTool,
   requestHumanApprovalTool,
-  prepareEmailTool,
-  sendEmailTool,
   setMcpClient,
 };
 

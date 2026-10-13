@@ -1139,97 +1139,23 @@
   border-color: #ef4444;
 }
 
-/* Email Draft Preview Card */
-.approval-email-preview {
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.82rem;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.app-wrapper.light .approval-email-preview {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: #e2e8f0;
-}
-
-.approval-email-preview-header {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #38bdf8;
-  margin-bottom: 2px;
-}
-
-.app-wrapper.light .approval-email-preview-header {
-  color: #0284c7;
-}
-
-.approval-email-row {
-  display: flex;
+/* Approval Cost Badge */
+.approval-cost-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text-main);
-  flex-wrap: wrap;
-}
-
-.approval-email-row .field-name {
-  font-weight: 700;
-  color: var(--text-muted, #94a3b8);
+  gap: 6px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 8px;
+  padding: 4px 10px;
   font-size: 0.8rem;
-  min-width: 55px;
+  color: var(--text-main);
+  width: fit-content;
 }
 
-.recipient-chip {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-family: monospace;
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.app-wrapper.light .recipient-chip {
-  background: #e0f2fe;
-  color: #0369a1;
-  border-color: #7dd3fc;
-}
-
-.subject-text {
-  font-weight: 600;
-  color: #f1f5f9;
-}
-
-.app-wrapper.light .subject-text {
-  color: #1e293b;
-}
-
-.approval-email-body {
-  background: rgba(0, 0, 0, 0.35);
-  border-left: 3px solid #38bdf8;
-  border-radius: 4px;
-  padding: 8px 10px;
-  font-size: 0.78rem;
-  color: #cbd5e1;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  max-height: 110px;
-  overflow-y: auto;
-  margin-top: 4px;
-}
-
-.app-wrapper.light .approval-email-body {
-  background: #f8fafc;
-  border-left-color: #0284c7;
-  color: #334155;
+.approval-cost-badge strong {
+  color: #4ade80;
+  font-weight: 700;
 }
 
 /* Plan Approval Actions & Buttons */

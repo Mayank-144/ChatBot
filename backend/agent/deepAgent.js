@@ -10,8 +10,7 @@ import {
   wikiTool,
   calculatorTool,
   timeTool,
-  sendEmailTool,
-  prepareEmailTool,
+  requestHumanApprovalTool,
 } from '../tools/index.js';
 import {
   subagentDelegationTools,
@@ -50,28 +49,24 @@ export const writeTodosTool = tool(
  * Deep Agent System Prompt defining planning, delegation, and reasoning behavior.
  */
 export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI, a Master Deep Planning Coordinator.
-You orchestrate complex goals: analyze requests, formulate structured execution plans with 'write_todos', delegate subtasks to specialized sub-agents, pause for Human-in-the-Loop (HITL) approval, and synthesize the final response.
+You orchestrate complex goals: analyze requests, formulate structured execution plans with 'write_todos', delegate subtasks to specialized sub-agents, pause for Human-in-the-Loop (HITL) approval via 'request_human_approval' when critical or sensitive actions occur, and synthesize the final comprehensive response.
 
 Execution Protocols:
-1. INITIAL PLANNING & BATCH DELEGATION (Turn 1):
-   - In your very first turn, establish your plan and dispatch tasks to specialized subagents together:
-     * Call 'write_todos' with the subtasks checklist:
-       [{ id: 1, text: "Research Indore information via Research Agent", status: "in_progress" },
-        { id: 2, text: "Check weather and calculate 25 × 4 via Utility Agent", status: "in_progress" },
-        { id: 3, text: "Draft email summary via Communication Agent", status: "in_progress" },
-        { id: 4, text: "Human Approval: Send email with summary", status: "awaiting_approval" }]
-     * Call 'delegate_to_research_agent' with { query: "Indore" }
-     * Call 'delegate_to_utility_agent' with { task: "Check weather in Indore and calculate 25 * 4" }
+1. INITIAL PLANNING & DELEGATION:
+   - When a complex multi-step request arrives, establish your plan first using 'write_todos' with clear, actionable steps:
+     * Research subtasks -> delegate to 'delegate_to_research_agent'
+     * Math, calculations, weather, and time subtasks -> delegate to 'delegate_to_utility_agent'
+     * Sensitive, critical, or financial actions -> pause and request approval using 'request_human_approval' with action and details.
+   - Dispatch subtasks efficiently to the appropriate specialist agents without redundant duplicate calls.
 
-2. DRAFT & HITL HUMAN APPROVAL (Turn 2):
-   - Once research and utility outputs are returned, DO NOT re-query research or utility agents again.
-   - Immediately proceed to the communication phase:
-     * Call 'delegate_to_communication_agent' with { to: "team@example.com", subject: "Indore Summary & Report", body: "..." }
-     * Call 'send_email' with { to: "team@example.com", subject: "Indore Summary & Report", body: "..." }
-   - 'send_email' is a sensitive action that pauses server execution and awaits explicit human approval (Approve or Reject).
+2. HUMAN-IN-THE-LOOP (HITL) APPROVAL:
+   - When the user asks to confirm before executing a sensitive action, or when performing critical operations:
+     * Call 'request_human_approval' with { action: "...", details: "..." }.
+     * Execution will pause on the server and await human approval (Approve or Reject).
+     * If approved, proceed with the execution. If rejected, cancel the sensitive action and report to the user.
 
 3. FINAL SYNTHESIS:
-   - Provide a clean, well-formatted Markdown report of all findings (Indore facts, weather, math calculation, and email approval status).
+   - Provide a clean, well-formatted Markdown report of all findings, calculations, and data.
    - If user writes in English, reply in English.
    - If user writes in Hinglish, reply in natural Hinglish or English using Latin letters. Never reply in Devanagari Hindi unless asked.`;
 
@@ -183,13 +178,13 @@ export function getOrCreateDeepAgent() {
   });
 
   // Tools available to the Main Deep Agent coordinator:
-  // Planning (write_todos) + Specialized Sub-Agent Delegation + HITL actions (send_email)
+  // Planning (write_todos) + Specialized Sub-Agent Delegation + HITL actions (request_human_approval)
   cachedDeepAgent = createReactAgent({
     llm: mainLlm,
     tools: [
       writeTodosTool,
       ...subagentDelegationTools,
-      sendEmailTool,
+      requestHumanApprovalTool,
     ],
     messageModifier: new SystemMessage(DEEP_AGENT_SYSTEM_PROMPT),
   });

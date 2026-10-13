@@ -9,10 +9,6 @@ const SUBAGENT_CONFIG = {
     label: 'Utility Specialist',
     icon: '⏱️',
   },
-  'communication-agent': {
-    label: 'Communication Specialist',
-    icon: '✉️',
-  },
   'math-time-agent': {
     label: 'Math & Time Specialist',
     icon: '🧮',
@@ -43,14 +39,8 @@ export function LiveTodoProgress({
   // Construct effective approval object even if SSE hasn't populated full approvalRequest
   const effectiveApproval = approvalRequest || (awaitingTodo ? {
     approvalId: null,
-    action: awaitingTodo.text || 'Send Email with Summary',
-    details: 'Human authorization is required to send this email summary.',
-    payload: {
-      type: 'email',
-      to: 'team@example.com',
-      subject: 'Summary Report & Live Weather',
-      body: 'Summary of Indore facts, current weather and mathematical calculations.',
-    },
+    action: awaitingTodo.text || 'Sensitive Action Approval',
+    details: 'Human authorization is required before executing this sensitive action.',
   } : null);
 
   const isResolved = Boolean(
@@ -99,19 +89,13 @@ export function LiveTodoProgress({
   const actionDisplay =
     effectiveApproval?.action ||
     awaitingTodo?.text ||
-    'Send Email with Summary & Data';
+    'Execute Critical Action';
 
-  const recipientDisplay =
-    effectiveApproval?.payload?.to ||
-    (actionDisplay.includes('@') ? actionDisplay.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] : 'team@example.com');
+  const detailsDisplay =
+    effectiveApproval?.details ||
+    'Please review and authorize this action before execution continues.';
 
-  const subjectDisplay =
-    effectiveApproval?.payload?.subject ||
-    'Summary Report & Live Weather';
-
-  const bodyDisplay =
-    effectiveApproval?.payload?.body ||
-    effectiveApproval?.details;
+  const estimatedCost = effectiveApproval?.estimatedCost || effectiveApproval?.payload?.estimatedCost;
 
   return (
     <div className={`plan-progress-card ${hasApproval && !isResolved ? 'needs-approval' : ''} ${isResolved ? 'resolved-card' : ''}`}>
@@ -186,31 +170,14 @@ export function LiveTodoProgress({
                       ? resolvedStatus === 'approved'
                         ? 'This sensitive action was authorized by you and executed by the AI coordinator.'
                         : 'This sensitive action was rejected by you and execution was cancelled.'
-                      : 'Please review and authorize this sensitive action before execution continues.'}
+                      : detailsDisplay}
                   </p>
                 </div>
 
-                {/* Email Draft Preview Card */}
-                {recipientDisplay && (
-                  <div className="approval-email-preview">
-                    <div className="approval-email-preview-header">
-                      <span className="preview-label">✉️ Email Draft Preview</span>
-                    </div>
-                    <div className="approval-email-row">
-                      <span className="field-name">To:</span>
-                      <span className="field-value recipient-chip">{recipientDisplay}</span>
-                    </div>
-                    {subjectDisplay && (
-                      <div className="approval-email-row">
-                        <span className="field-name">Subject:</span>
-                        <span className="field-value subject-text">{subjectDisplay}</span>
-                      </div>
-                    )}
-                    {bodyDisplay && (
-                      <div className="approval-email-body">
-                        {bodyDisplay}
-                      </div>
-                    )}
+                {estimatedCost && estimatedCost !== 'N/A' && (
+                  <div className="approval-cost-badge">
+                    <span>Estimated Cost:</span>
+                    <strong>₹{estimatedCost}</strong>
                   </div>
                 )}
               </div>

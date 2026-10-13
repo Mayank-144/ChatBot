@@ -4,7 +4,6 @@ import { wikiTool } from '../tools/wikiTool.js';
 import { weatherTool } from '../tools/weatherTool.js';
 import { calculatorTool } from '../tools/calculatorTool.js';
 import { timeTool } from '../tools/timeTool.js';
-import { prepareEmailTool } from '../tools/emailTool.js';
 
 /**
  * Module-level listener for subagent lifecycle events (start, complete).
@@ -189,79 +188,17 @@ export const delegateToUtilityAgentTool = tool(
   }
 );
 
-// =========================================================================
-// 3. COMMUNICATION AGENT
-// Specialized sub-agent handling drafting and formatting of emails
-// =========================================================================
-export const delegateToCommunicationAgentTool = tool(
-  async ({ to = 'team@example.com', subject, body, task }) => {
-    const finalSubject = subject || 'Summary Report: Findings and Calculations';
-    const finalBody = body || task || 'Please find the summary of requested findings attached.';
-    const finalTo = to || 'team@example.com';
-
-    console.log(`[DELEGATE] Coordinator -> Communication Agent: Draft email to "${finalTo}" with subject "${finalSubject}"`);
-
-    notifySubagent({
-      name: 'communication-agent',
-      status: 'running',
-      task: `Drafting email: "${finalSubject}"`,
-    });
-
-    try {
-      const draftResult = await prepareEmailTool.invoke({
-        to: finalTo,
-        subject: finalSubject,
-        body: finalBody,
-      });
-
-      const output = typeof draftResult === 'string' ? draftResult : JSON.stringify(draftResult);
-
-      notifySubagent({
-        name: 'communication-agent',
-        status: 'completed',
-        task: `Drafting email: "${finalSubject}"`,
-        output: `Draft ready for ${finalTo}`,
-      });
-
-      return output;
-    } catch (err) {
-      notifySubagent({
-        name: 'communication-agent',
-        status: 'completed',
-        task: `Drafting email`,
-        output: `Error: ${err.message}`,
-      });
-      return `Communication Agent error: ${err.message}`;
-    }
-  },
-  {
-    name: 'delegate_to_communication_agent',
-    description:
-      'Delegate email drafting and communication formatting to the specialized Communication Agent.',
-    schema: z
-      .object({
-        to: z.string().optional().describe('Recipient email address (defaults to team@example.com)'),
-        subject: z.string().optional().describe('Clear subject line for the email'),
-        body: z.string().optional().describe('Email body text containing the structured summary of findings and calculations'),
-        task: z.string().optional().describe('Drafting instructions'),
-      })
-      .passthrough(),
-  }
-);
-
 /**
  * Subagent delegation tools array exported for the coordinator.
  */
 export const subagentDelegationTools = [
   delegateToResearchAgentTool,
   delegateToUtilityAgentTool,
-  delegateToCommunicationAgentTool,
 ];
 
 export default {
   setSubagentEventListener,
   delegateToResearchAgentTool,
   delegateToUtilityAgentTool,
-  delegateToCommunicationAgentTool,
   subagentDelegationTools,
 };
