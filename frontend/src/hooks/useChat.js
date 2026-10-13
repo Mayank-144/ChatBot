@@ -66,7 +66,8 @@ export function useChat() {
       return;
     }
 
-    const hasInput = input.trim().length > 0;
+    const activeText = (typeof overrideText === 'string' ? overrideText : input).trim();
+    const hasInput = activeText.length > 0;
     const hasFiles = stagedFiles.length > 0;
 
     if ((!hasInput && !hasFiles) || loading) return;
@@ -86,7 +87,7 @@ export function useChat() {
     const docFiles = stagedFiles.filter((f) => !f.isImage && f.status === 'ready');
     const imageUrls = imageFiles.map((f) => f.dataUrl);
 
-    let promptText = input.trim();
+    let promptText = activeText;
 
     let fullApiContent = promptText;
 
@@ -112,7 +113,7 @@ export function useChat() {
 
     const userMessage = {
       role: 'user',
-      content: input.trim() || (hasFiles ? `Uploaded: ${stagedFiles.map((f) => f.name).join(', ')}` : ''),
+      content: activeText || (hasFiles ? `Uploaded: ${stagedFiles.map((f) => f.name).join(', ')}` : ''),
       files: attachedMetadata,
       images: imageUrls,
       apiPayload: fullApiContent,
@@ -127,6 +128,7 @@ export function useChat() {
       agentRoute: null,
       todos: [],
       subagents: [],
+      approvalRequest: null,
     };
 
     const updatedMessages = [...messages, userMessage];
@@ -257,6 +259,15 @@ export function useChat() {
             }
             return { ...msg, subagents: currentSubagents };
           })
+        );
+      },
+      onApprovalRequest: (approvalReq) => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? { ...msg, approvalRequest: approvalReq }
+              : msg
+          )
         );
       },
       onChunk: (chunk) => {

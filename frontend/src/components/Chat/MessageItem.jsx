@@ -21,9 +21,13 @@ const TOOL_CONFIG = {
     icon: '🕒',
     label: 'MCP Time',
   },
+  request_human_approval: {
+    icon: '🛡️',
+    label: 'Human Approval',
+  },
 };
 
-export function MessageItem({ msg, index, copiedIndex, onCopy }) {
+export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove }) {
   return (
     <div className={`message-item ${msg.role}`}>
       <div className="message-meta">
@@ -67,6 +71,8 @@ export function MessageItem({ msg, index, copiedIndex, onCopy }) {
         <LiveTodoProgress
           todos={msg.todos}
           subagents={msg.subagents}
+          approvalRequest={msg.approvalRequest}
+          onApprove={onApprove}
           isStreaming={msg.isStreaming}
         />
       )}

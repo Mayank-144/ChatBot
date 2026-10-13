@@ -22,6 +22,7 @@ export async function sendChatMessage({
   onTodos,
   onSubagent,
   onAgentRoute,
+  onApprovalRequest,
   onDone,
   onError,
   signal,
@@ -87,6 +88,10 @@ export async function sendChatMessage({
             status: parsed.status,
             task: parsed.task,
           });
+        }
+
+        if (parsed.approvalRequest && onApprovalRequest) {
+          onApprovalRequest(parsed.approvalRequest);
         }
 
         const delta = parsed.choices?.[0]?.delta?.content || '';

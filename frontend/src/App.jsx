@@ -46,6 +46,10 @@ function App() {
     handleSend({ stagedFiles, clearStagedFiles });
   };
 
+  const handleApprove = (approvalText) => {
+    handleSend({ stagedFiles: [], clearStagedFiles: null }, approvalText);
+  };
+
   const onClear = (e) => {
     handleClearChat(e);
     clearStagedFiles();
@@ -113,6 +117,7 @@ function App() {
           loading={loading}
           copiedIndex={copiedIndex}
           onCopy={handleCopy}
+          onApprove={handleApprove}
         />
 
         <ChatInput

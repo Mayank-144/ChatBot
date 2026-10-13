@@ -222,6 +222,10 @@ app.post('/api/chat', async (req, res) => {
               })}\n\n`
             );
           },
+          onApprovalRequest: (approvalReq) => {
+            // Dedicated SSE event when Human-in-the-Loop approval is requested
+            res.write(`data: ${JSON.stringify({ approvalRequest: approvalReq })}\n\n`);
+          },
           onToken: (chunk) => {
             streamedAnyToken = true;
             res.write(

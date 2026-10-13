@@ -41,13 +41,10 @@ async function fetchWeather({ city }) {
         const country = data.sys?.country || '';
 
         return JSON.stringify({
-          location: `${data.name}${country ? ', ' + country : ''}`,
-          temperature: `${temp}°C`,
-          feelsLike: `${feelsLike}°C`,
+          city: data.name,
+          temp: `${temp}°C`,
           condition: condition.charAt(0).toUpperCase() + condition.slice(1),
           humidity: `${humidity}%`,
-          windSpeed: `${windSpeed} km/h`,
-          source: 'OpenWeatherMap Live API',
         });
       }
 

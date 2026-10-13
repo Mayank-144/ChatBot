@@ -11,23 +11,31 @@ const SUBAGENT_CONFIG = {
   },
 };
 
-export function LiveTodoProgress({ todos = [], subagents = [], isStreaming = false }) {
+export function LiveTodoProgress({
+  todos = [],
+  subagents = [],
+  approvalRequest = null,
+  onApprove = null,
+  isStreaming = false,
+}) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const hasTodos = Array.isArray(todos) && todos.length > 0;
   const hasSubagents = Array.isArray(subagents) && subagents.length > 0;
+  const hasApproval = Boolean(approvalRequest || todos.some((t) => t.status === 'awaiting_approval'));
 
-  if (!hasTodos && !hasSubagents) {
+  if (!hasTodos && !hasSubagents && !hasApproval) {
     return null;
   }
 
   const completedCount = todos.filter((t) => t.status === 'completed').length;
   const inProgressCount = todos.filter((t) => t.status === 'in_progress').length;
+  const awaitingCount = todos.filter((t) => t.status === 'awaiting_approval').length;
   const totalCount = todos.length;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
 
   return (
-    <div className="plan-progress-card">
+    <div className={`plan-progress-card ${hasApproval ? 'needs-approval' : ''}`}>
       {/* Collapsible Header */}
       <button
         type="button"
@@ -36,11 +44,19 @@ export function LiveTodoProgress({ todos = [], subagents = [], isStreaming = fal
         aria-expanded={isExpanded}
       >
         <div className="plan-progress-title">
-          <span className="plan-icon">📋</span>
-          <span className="plan-title-text">Execution Plan & Progress</span>
+          <span className="plan-icon">{hasApproval ? '🛡️' : '📋'}</span>
+          <span className="plan-title-text">
+            {hasApproval ? 'Human Approval Checkpoint' : 'Execution Plan & Subtasks'}
+          </span>
           {hasTodos && (
-            <span className={`plan-badge ${allCompleted ? 'done' : 'active'}`}>
-              {allCompleted
+            <span
+              className={`plan-badge ${
+                awaitingCount > 0 ? 'warning' : allCompleted ? 'done' : 'active'
+              }`}
+            >
+              {awaitingCount > 0
+                ? `${awaitingCount} Awaiting Approval`
+                : allCompleted
                 ? `All ${totalCount} Done ✓`
                 : `${completedCount}/${totalCount} Completed`}
             </span>
@@ -58,6 +74,40 @@ export function LiveTodoProgress({ todos = [], subagents = [], isStreaming = fal
       {/* Collapsible Body */}
       {isExpanded && (
         <div className="plan-progress-content">
+          {/* Human-in-the-Loop Approval Action Banner */}
+          {hasApproval && (
+            <div className="plan-approval-banner">
+              <div className="plan-approval-info">
+                <span className="plan-approval-badge">🛡️ Action Requires Confirmation</span>
+                <p className="plan-approval-desc">
+                  {approvalRequest?.action ||
+                    'Please review and approve the final subtask execution before the agent proceeds.'}
+                </p>
+                {approvalRequest?.estimatedCost && approvalRequest.estimatedCost !== 'N/A' && (
+                  <span className="plan-approval-cost">
+                    Budget / Cost: <strong>₹{approvalRequest.estimatedCost}</strong>
+                  </span>
+                )}
+              </div>
+              {onApprove && (
+                <div className="plan-approval-actions">
+                  <button
+                    type="button"
+                    className="approval-btn approve"
+                    onClick={() => {
+                      const text = approvalRequest?.action
+                        ? `Approved: Proceed with "${approvalRequest.action}".`
+                        : 'Approved: Proceed with executing the finalized plan.';
+                      onApprove(text);
+                    }}
+                  >
+                    ✓ Approve & Continue
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Subagent Badges */}
           {hasSubagents && (
             <div className="subagent-pills-row">
@@ -90,6 +140,7 @@ export function LiveTodoProgress({ todos = [], subagents = [], isStreaming = fal
             <ul className="plan-todo-list">
               {todos.map((todo, idx) => {
                 const status = todo.status || 'pending';
+                const isApproval = status === 'awaiting_approval';
                 return (
                   <li key={todo.id || idx} className={`plan-todo-item ${status}`}>
                     <span className={`todo-check-icon ${status}`}>
@@ -97,9 +148,13 @@ export function LiveTodoProgress({ todos = [], subagents = [], isStreaming = fal
                       {status === 'in_progress' && (
                         <span className="todo-mini-spinner"></span>
                       )}
+                      {isApproval && '🛡️'}
                       {status === 'pending' && '○'}
                     </span>
                     <span className={`todo-text ${status}`}>{todo.text}</span>
+                    {isApproval && (
+                      <span className="todo-approval-tag">Awaiting Approval</span>
+                    )}
                   </li>
                 );
               })}

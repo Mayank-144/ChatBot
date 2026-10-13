@@ -86,15 +86,11 @@ async function searchWikipedia({ query }) {
     if (summaryResponse.ok) {
       const summaryData = await summaryResponse.json();
       const title = summaryData.title || topTitle;
-      const description = summaryData.description || '';
       const extract = summaryData.extract || '';
-      const pageUrl = summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topTitle)}`;
 
       return JSON.stringify({
         title,
-        description,
-        summary: extract.slice(0, 450), // Concise for token efficiency & fast Groq inference
-        url: pageUrl,
+        summary: extract.slice(0, 180), // Ultra-concise core facts (preserves tokens on Groq free tier)
       });
     }
 
@@ -102,8 +98,7 @@ async function searchWikipedia({ query }) {
     const snippet = searchResults[0].snippet ? searchResults[0].snippet.replace(/<[^>]*>/g, '') : '';
     return JSON.stringify({
       title: topTitle,
-      summary: snippet.slice(0, 350),
-      url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topTitle)}`,
+      summary: snippet.slice(0, 150),
     });
   } catch (error) {
     return `Error fetching Wikipedia information for "${cleanQuery}": ${error.message}`;

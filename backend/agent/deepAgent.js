@@ -28,9 +28,8 @@ const writeTodosSchema = z.object({
 export const writeTodosTool = tool(
   async ({ todos }) => {
     return JSON.stringify({
-      status: 'success',
+      status: 'plan_recorded',
       count: todos?.length || 0,
-      todos,
     });
   },
   {
@@ -44,30 +43,48 @@ export const writeTodosTool = tool(
  * Deep Agent System Prompt defining planning, delegation, and reasoning behavior.
  */
 export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI (Deep Planning Assistant).
-You excel at breaking down complex, multi-part questions, creating structured plans, and executing them systematically.
+You excel at breaking down complex, multi-part questions, creating structured plans, executing tools systematically, and integrating Human-in-the-Loop approval workflows.
 
 Capabilities & Protocols:
-1. Planning with 'write_todos':
-   - For multi-step, multi-question, or compound queries, call 'write_todos' ONCE at the start to establish your numbered checklist of tasks alongside invoking the necessary tools in parallel.
-   - Do NOT call 'write_todos' repeatedly.
+1. MANDATORY SUBTASKING with 'write_todos':
+   - For ANY multi-part, planning, or compound query, you MUST ALWAYS call 'write_todos' in your first turn to output your numbered list of subtasks.
+   - Example:
+     write_todos({
+       todos: [
+         { id: 1, text: "Check live weather in Jaipur", status: "in_progress" },
+         { id: 2, text: "Calculate hotel and flight costs", status: "in_progress" },
+         { id: 3, text: "Obtain human approval before finalizing booking", status: "awaiting_approval" }
+       ]
+     })
+   - Mark normal tasks as 'in_progress' or 'completed'.
+   - Mark any critical, booking, payment, or confirmation step as 'awaiting_approval'.
+   - Call 'write_todos' once at the start, do not call it in an infinite loop.
 
-2. Tool Execution:
+2. Human Approval Protocol ('request_human_approval'):
+   - When a plan involves finalizing trip bookings, high expenses, ticket reservations, or when the user asks for approval:
+     * Call 'request_human_approval' with action, details, and estimatedCost.
+     * Ensure the matching subtask in 'write_todos' is marked 'awaiting_approval'.
+     * In your final response, summarize the plan and explicitly ask the user for confirmation.
+
+3. Ultra-Lean Tool Execution (Token Safety):
+   - Parallel Execution: Invoke all required tool calls (e.g. write_todos, get_weather, calculator) together in parallel in Turn 1 to prevent multiple LLM roundtrips and token bloat.
+   - Do NOT search Wikipedia or URLs unnecessarily if not explicitly requested by the user.
    - Use 'get_weather' for weather reports.
-   - Use 'wikipedia_search' for definitions, facts, and history.
-   - Use 'calculator' for arithmetic calculations.
+   - Use 'wikipedia_search' strictly for brief factual lookups when explicitly requested.
+   - Use 'calculator' for exact arithmetic calculations.
    - Use 'get_time' for current time.
 
-3. Final Synthesis & Language Rule:
+4. Final Synthesis & Language Rule:
    - Directly synthesize all tool findings into a clean, beautifully formatted Markdown response.
    - LANGUAGE RULE (STRICT):
      * If user writes in English, respond in English.
      * If user writes in Hinglish (Hindi written in Latin/English letters), respond in natural Hinglish or English using Latin letters. Never use Devanagari script unless explicitly requested.
      * ONLY use Devanagari Hindi script if the user writes in Devanagari Hindi or asks "hindi me batao".
-   - State calculation totals and key takeaways clearly.`;
+   - State calculation totals, approval checkpoints, and key takeaways clearly.`;
 
 /**
  * Normalizes raw todo input/output into a structured, predictable format:
- * [{ id: number, text: string, status: 'pending' | 'in_progress' | 'completed' }]
+ * [{ id: number, text: string, status: 'pending' | 'in_progress' | 'completed' | 'awaiting_approval' }]
  */
 export function normalizeTodos(raw) {
   if (!raw) return [];
@@ -109,6 +126,8 @@ export function normalizeTodos(raw) {
       const rawStatus = String(item?.status || '').toLowerCase();
       if (['completed', 'done', 'finished', 'true'].includes(rawStatus) || item?.completed === true) {
         status = 'completed';
+      } else if (['awaiting_approval', 'approval_required', 'needs_approval', 'approval'].includes(rawStatus)) {
+        status = 'awaiting_approval';
       } else if (['in_progress', 'doing', 'running', 'active'].includes(rawStatus)) {
         status = 'in_progress';
       }
@@ -200,12 +219,19 @@ export async function runDeepAgent({
   input,
   sessionId = 'default',
   onToken = null,
+  onChunk = null,
   onToolStart = null,
+  onToolCall = null,
   onToolEnd = null,
   onTodoUpdate = null,
+  onTodos = null,
   onSubagentEvent = null,
+  onApprovalRequest = null,
   recursionLimit = 25,
 }) {
+  const notifyToken = onToken || onChunk;
+  const notifyToolStart = onToolStart || onToolCall;
+  const notifyTodoUpdate = onTodoUpdate || onTodos;
   const agent = getOrCreateDeepAgent();
   const rawPastMessages = await getSessionMessages(sessionId);
   const pastMessages = rawPastMessages.slice(-2).map((m) => {
@@ -215,9 +241,13 @@ export async function runDeepAgent({
     return m;
   });
 
+  const inputContent = typeof input === 'string'
+    ? input
+    : (input?.content || (Array.isArray(input) ? input[input.length - 1]?.content : String(input || '')));
+
   const messages = [
     ...pastMessages,
-    new HumanMessage(input),
+    new HumanMessage(inputContent),
   ];
 
   const toolCalls = [];
@@ -227,7 +257,7 @@ export async function runDeepAgent({
   let activeSubagentCount = 0;
   let currentSubagentName = null;
 
-  const maxAttempts = 3;
+  const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       toolCalls.length = 0;
@@ -257,8 +287,8 @@ export async function runDeepAgent({
           toolCalls.push(toolData);
 
           // Notify tool start (for tool badge events in UI)
-          if (onToolStart) {
-            onToolStart(toolData);
+          if (notifyToolStart) {
+            notifyToolStart(toolData);
           }
 
           // Check if subagent task tool started
@@ -278,12 +308,17 @@ export async function runDeepAgent({
             }
           }
 
+          // Check if human approval tool started
+          if (event.name === 'request_human_approval' && onApprovalRequest) {
+            onApprovalRequest(event.data?.input);
+          }
+
           // Check if planning write_todos tool started
-          if (event.name === 'write_todos' && onTodoUpdate) {
+          if (event.name === 'write_todos' && notifyTodoUpdate) {
             const rawTodos = event.data?.input?.todos || event.data?.input;
             if (rawTodos) {
               latestTodos = normalizeTodos(rawTodos);
-              onTodoUpdate(latestTodos);
+              notifyTodoUpdate(latestTodos);
             }
           }
         }
@@ -316,11 +351,11 @@ export async function runDeepAgent({
           }
 
           // Check if write_todos produced an updated todo list
-          if (event.name === 'write_todos' && onTodoUpdate) {
-            const rawTodos = event.data?.output?.todos || event.data?.output;
-            if (rawTodos) {
+          if (event.name === 'write_todos' && notifyTodoUpdate) {
+            const rawTodos = event.data?.output?.todos;
+            if (Array.isArray(rawTodos) && rawTodos.length > 0) {
               latestTodos = normalizeTodos(rawTodos);
-              onTodoUpdate(latestTodos);
+              notifyTodoUpdate(latestTodos);
             }
           }
         }
@@ -340,8 +375,8 @@ export async function runDeepAgent({
                 const cleanChunk = rawChunk.replace(/<\|.*?\|>/g, '');
                 if (cleanChunk) {
                   finalContent += cleanChunk;
-                  if (onToken) {
-                    onToken(cleanChunk);
+                  if (notifyToken) {
+                    notifyToken(cleanChunk);
                   }
                 }
               }
@@ -380,16 +415,16 @@ export async function runDeepAgent({
         err?.cause?.message?.includes('429');
 
       if (isRateLimit && attempt < maxAttempts) {
-        const fullErrStr = `${err} ${err?.message || ''} ${err?.cause?.message || ''} ${JSON.stringify(err?.cause || {})}`;
+        let waitMs = 15000;
+        const fullErrStr = `${err} ${err?.message || ''} ${err?.cause?.message || ''} ${JSON.stringify(err?.error || {})} ${JSON.stringify(err?.cause || {})}`;
         const matchSec = fullErrStr.match(/try again in ([\d\.]+)\s*s\b/i);
         const matchMs = fullErrStr.match(/try again in ([\d\.]+)\s*ms\b/i);
-        let waitMs = 5000;
         if (matchSec) {
-          waitMs = Math.min(Math.ceil(parseFloat(matchSec[1]) * 1000) + 2000, 35000);
+          waitMs = Math.max(14000, Math.ceil(parseFloat(matchSec[1]) * 1000) + 2500);
         } else if (matchMs) {
-          waitMs = Math.min(Math.ceil(parseFloat(matchMs[1])) + 1500, 35000);
+          waitMs = Math.max(14000, Math.ceil(parseFloat(matchMs[1])) + 2500);
         }
-        console.warn(`⏳ Groq 429 rate limit encountered in runDeepAgent (attempt ${attempt}/${maxAttempts}). Backing off ${waitMs}ms before retry...`);
+        console.warn(`⏳ Groq 429 rate limit (attempt ${attempt}/${maxAttempts}): ${err?.message || ''}. Backing off ${waitMs}ms before retry...`);
         await new Promise((r) => setTimeout(r, waitMs));
         continue;
       }
@@ -400,8 +435,8 @@ export async function runDeepAgent({
   // Safe fallback if streaming chunks were buffered
   if (!finalContent && fallbackContent) {
     finalContent = fallbackContent;
-    if (onToken) {
-      onToken(finalContent);
+    if (notifyToken) {
+      notifyToken(finalContent);
     }
   }
 
@@ -409,10 +444,13 @@ export async function runDeepAgent({
     finalContent = 'I processed your multi-step request, but no additional response was generated.';
   }
 
-  // Finalize all planned tasks as completed for frontend visual progress
+  // Finalize all planned tasks as completed (while preserving awaiting_approval items for human review)
   if (latestTodos && latestTodos.length > 0 && onTodoUpdate) {
-    const allCompleted = latestTodos.map((t) => ({ ...t, status: 'completed' }));
-    onTodoUpdate(allCompleted);
+    const finalized = latestTodos.map((t) => ({
+      ...t,
+      status: t.status === 'awaiting_approval' ? 'awaiting_approval' : 'completed',
+    }));
+    onTodoUpdate(finalized);
   }
 
   // Record completed turn into session memory
