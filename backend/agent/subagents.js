@@ -181,8 +181,8 @@ export const delegateToUtilityAgentTool = tool(
         city: z.string().optional().describe('City name for weather lookup (e.g. "Indore")'),
         calculation: z.string().optional().describe('Math expression to evaluate (e.g. "25 * 4")'),
         operation: z.string().optional().describe('Operation name (e.g. "multiply")'),
-        a: z.union([z.number(), z.string()]).optional().describe('First number'),
-        b: z.union([z.number(), z.string()]).optional().describe('Second number'),
+        a: z.number().optional().describe('First number'),
+        b: z.number().optional().describe('Second number'),
       })
       .passthrough(),
   }

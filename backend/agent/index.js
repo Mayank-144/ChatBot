@@ -1,4 +1,5 @@
 import { ChatGroq } from '@langchain/groq';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { recordTurn, getSessionMessages } from './memory.js';
@@ -24,11 +25,29 @@ Guidelines:
 4. Maintain conversation context and recall information shared earlier by the user.`;
 
 /**
+ * Creates and configures a LangChain ChatGoogleGenerativeAI model instance.
+ * @param {Object} [options]
+ * @returns {ChatGoogleGenerativeAI}
+ */
+export function getGeminiModel(options = {}) {
+  const apiKey = options.apiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const modelName = options.modelName || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+  const temperature = options.temperature ?? 0.2;
+
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured. Please provide it in your .env file.');
+  }
+
+  return new ChatGoogleGenerativeAI({
+    apiKey,
+    model: modelName,
+    temperature,
+  });
+}
+
+/**
  * Creates and configures a LangChain ChatGroq model instance.
  * @param {Object} [options]
- * @param {string} [options.apiKey]
- * @param {string} [options.modelName]
- * @param {number} [options.temperature]
  * @returns {ChatGroq}
  */
 export function getGroqModel(options = {}) {
@@ -49,15 +68,28 @@ export function getGroqModel(options = {}) {
 }
 
 /**
+ * Returns the active AI model instance based on configured provider (Gemini or Groq).
+ * Defaults to Google Gemini when GEMINI_API_KEY is present for unlimited token quotas.
+ * @param {Object} [options]
+ * @returns {ChatGoogleGenerativeAI | ChatGroq}
+ */
+export function getModel(options = {}) {
+  if (process.env.GEMINI_API_KEY || process.env.MODEL_PROVIDER === 'gemini') {
+    return getGeminiModel(options);
+  }
+  return getGroqModel(options);
+}
+
+/**
  * Builds a runnable LangChain React Agent with the provided tools.
  * @param {Object} params
  * @param {Array} params.tools - Array of LangChain tools
  * @param {string} [params.systemPrompt]
- * @param {ChatGroq} [params.model]
+ * @param {any} [params.model]
  * @returns {any} Runnable agent executor
  */
 export function createChatAgent({ tools = [], systemPrompt = DEFAULT_SYSTEM_PROMPT, model = null }) {
-  const llm = model || getGroqModel();
+  const llm = model || getModel();
   
   return createReactAgent({
     llm,

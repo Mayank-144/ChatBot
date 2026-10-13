@@ -14,9 +14,9 @@ const humanApprovalSchema = z.object({
     .string()
     .describe('Clear rationale, breakdown, or conditions for human review'),
   estimatedCost: z
-    .union([z.string(), z.number()])
+    .string()
     .optional()
-    .describe('Estimated budget or financial cost if applicable'),
+    .describe('Estimated budget or financial cost if applicable (e.g. "500")'),
 });
 
 /**

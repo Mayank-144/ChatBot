@@ -36,11 +36,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 1. Health Check Endpoint
 app.get('/api/health', (req, res) => {
+  const isGemini = Boolean(process.env.GEMINI_API_KEY || process.env.MODEL_PROVIDER === 'gemini');
   res.json({
     status: 'online',
     service: 'Mayank AI ChatBot Backend API (LangChain + MCP)',
     version: '2.0.0',
-    model: process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
+    provider: isGemini ? 'Google Gemini' : 'Groq',
+    model: isGemini ? (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite') : (process.env.GROQ_MODEL || 'llama-3.1-8b-instant'),
     deepAgentEnabled: process.env.USE_DEEP_AGENT === 'true',
     activeTools: agentTools.map((t) => t.name),
     timestamp: new Date().toISOString(),
@@ -87,11 +89,11 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: { message: 'Messages array is required.' } });
   }
 
-  const apiKey = process.env.GROQ_API_KEY || process.env.VITE_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || process.env.VITE_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
       error: {
-        message: 'GROQ_API_KEY is not configured on the backend server. Please set it in your .env file.',
+        message: 'No AI API Key is configured on the backend server. Please set GEMINI_API_KEY or GROQ_API_KEY in your .env file.',
       },
     });
   }
@@ -103,13 +105,16 @@ app.post('/api/chat', async (req, res) => {
       (Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url'))
   );
 
-  // If multimodal vision images are attached, handle directly via Groq Vision API
+  // If multimodal vision images are attached, handle directly via AI Vision API
   if (hasImages) {
-    const visionModel = 'qwen/qwen3.8-27b';
-    const groqApiUrl =
-      process.env.GROQ_API_URL ||
-      process.env.VITE_API_URL ||
-      'https://api.groq.com/openai/v1/chat/completions';
+    const isGeminiVision = Boolean(process.env.GEMINI_API_KEY);
+    const visionModel = isGeminiVision
+      ? (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite')
+      : 'qwen/qwen3.8-27b';
+    const visionApiUrl = isGeminiVision
+      ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+      : (process.env.GROQ_API_URL || process.env.VITE_API_URL || 'https://api.groq.com/openai/v1/chat/completions');
+    const authKey = isGeminiVision ? process.env.GEMINI_API_KEY : (process.env.GROQ_API_KEY || apiKey);
 
     let totalImagesCount = 0;
     const formattedMessages = messages
@@ -147,11 +152,11 @@ app.post('/api/chat', async (req, res) => {
       });
 
     try {
-      const visionRes = await fetch(groqApiUrl, {
+      const visionRes = await fetch(visionApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${authKey}`,
         },
         body: JSON.stringify({
           model: visionModel,

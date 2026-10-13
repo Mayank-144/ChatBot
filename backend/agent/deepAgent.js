@@ -2,7 +2,7 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getGroqModel } from './index.js';
+import { getModel, getGroqModel, getGeminiModel } from './index.js';
 import { getSessionMessages, recordTurn } from './memory.js';
 import {
   agentTools,
@@ -24,7 +24,7 @@ import { approvalContext } from './approvalManager.js';
 const writeTodosSchema = z.object({
   todos: z.array(
     z.object({
-      id: z.union([z.number(), z.string()]).optional(),
+      id: z.number().optional(),
       text: z.string().describe('Description of the task step'),
       status: z.string().optional().default('pending'),
     })
@@ -133,8 +133,7 @@ export function normalizeTodos(raw) {
  * Subagent definitions with isolated tools and specialized prompts.
  */
 export function createSubagentSpecs() {
-  const subagentLlm = getGroqModel({
-    modelName: process.env.GROQ_SUBAGENT_MODEL || process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
+  const subagentLlm = getModel({
     temperature: 0.1,
   });
 
@@ -172,8 +171,7 @@ export function getOrCreateDeepAgent() {
     return cachedDeepAgent;
   }
 
-  const mainLlm = getGroqModel({
-    modelName: process.env.GROQ_DEEP_MODEL || process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+  const mainLlm = getModel({
     temperature: 0.2,
   });
 
