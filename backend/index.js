@@ -11,6 +11,8 @@ import { routeQuery } from './agent/router.js';
 import { agentTools, setMcpClient } from './tools/index.js';
 import { clearSessionHistory } from './agent/memory.js';
 import { resolveApproval, getPendingApproval } from './agent/approvalManager.js';
+import { runLeadsAgent } from './agent/leadsAgent.js';
+import { initScheduler, getSchedulerStatus } from './services/scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -489,6 +491,66 @@ app.get('/api/mcp/calculate', async (req, res) => {
   }
 });
 
+// ==========================================
+// BUSINESS LEADS API ENDPOINTS
+// ==========================================
+
+// Trigger leads agent manually right now
+app.post('/api/leads/run', async (req, res) => {
+  try {
+    const { query, industry, location, sendEmail, recipientEmail } = req.body || {};
+    const sessionId = req.headers['x-session-id'] || `leads_manual_${Date.now()}`;
+
+    const result = await runLeadsAgent(
+      { query, industry, location, sendEmail, recipientEmail },
+      sessionId
+    );
+
+    return res.json({
+      success: true,
+      query: query || `${industry || 'tech'} companies in ${location || 'India'}`,
+      leads: result.leads,
+      output: result.output,
+      emailStatus: result.emailStatus,
+    });
+  } catch (error) {
+    console.error('Error running leads agent:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Returns scheduler status, last run time, next run time
+app.get('/api/leads/status', (req, res) => {
+  try {
+    const status = getSchedulerStatus();
+    return res.json({ success: true, ...status });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update schedule dynamically without restart
+app.post('/api/leads/schedule', (req, res) => {
+  try {
+    const { schedule, cronExpr } = req.body || {};
+    if (!schedule) {
+      return res.status(400).json({
+        success: false,
+        error: 'Schedule parameter is required ("morning"|"evening"|"night"|"midnight"|"custom"|"disabled")',
+      });
+    }
+
+    const updatedStatus = initScheduler({ schedule, cronExpr });
+    return res.json({
+      success: true,
+      message: `Schedule successfully updated to ${schedule}`,
+      ...updatedStatus,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // MCP Client initialization
 async function initMcpClient() {
   try {
@@ -528,6 +590,8 @@ app.listen(PORT, async () => {
   console.log(`🚀 Mayank AI Backend Server running on port ${PORT}`);
   console.log(`🔗 Health Check:    http://localhost:${PORT}/api/health`);
   console.log(`💬 Chat API:        http://localhost:${PORT}/api/chat`);
+  console.log(`🎯 Leads Run API:   http://localhost:${PORT}/api/leads/run`);
+  console.log(`⏱️ Leads Status:    http://localhost:${PORT}/api/leads/status`);
   console.log(`🎙️ Audio Transcribe: http://localhost:${PORT}/api/transcribe`);
   console.log(`🛠️ MCP Tools List:  http://localhost:${PORT}/api/mcp/tools`);
   console.log(`🕒 MCP Time Test:   http://localhost:${PORT}/api/mcp/time`);
@@ -536,4 +600,7 @@ app.listen(PORT, async () => {
 
   // Initialize MCP client connection
   await initMcpClient();
+
+  // Initialize automated leads scheduler service
+  initScheduler();
 });
