@@ -11,6 +11,8 @@ import {
   calculatorTool,
   timeTool,
   requestHumanApprovalTool,
+  leadsTool,
+  emailTool,
 } from '../tools/index.js';
 import {
   subagentDelegationTools,
@@ -56,6 +58,7 @@ Execution Protocols:
    - When a complex multi-step request arrives, establish your plan first using 'write_todos' with clear, actionable steps:
      * Research subtasks -> delegate to 'delegate_to_research_agent'
      * Math, calculations, weather, and time subtasks -> delegate to 'delegate_to_utility_agent'
+     * Business leads & company discovery -> delegate to 'delegate_to_leads_agent' (or call 'search_business_leads' and 'send_leads_email')
      * Sensitive, critical, or financial actions -> pause and request approval using 'request_human_approval' with action, details, and estimatedCost.
    - Dispatch subtasks efficiently to the appropriate specialist agents without redundant duplicate calls.
 
@@ -183,13 +186,15 @@ export function getOrCreateDeepAgent() {
   });
 
   // Tools available to the Main Deep Agent coordinator:
-  // Planning (write_todos) + Specialized Sub-Agent Delegation + HITL actions (request_human_approval)
+  // Planning (write_todos) + Specialized Sub-Agent Delegation + HITL actions (request_human_approval) + Leads
   cachedDeepAgent = createReactAgent({
     llm: mainLlm,
     tools: [
       writeTodosTool,
       ...subagentDelegationTools,
       requestHumanApprovalTool,
+      leadsTool,
+      emailTool,
     ],
     messageModifier: new SystemMessage(DEEP_AGENT_SYSTEM_PROMPT),
   });

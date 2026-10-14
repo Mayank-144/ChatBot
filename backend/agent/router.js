@@ -147,17 +147,30 @@ export function analyzeComplexity(input) {
 export function routeQuery(input, options = {}) {
   const trimmed = (input || '').trim();
 
-  // 1. Direct Business Leads intent check (always routes to leads agent if active)
-  if (LEADS_PATTERNS.some((p) => p.test(trimmed))) {
+  const isDeepAgentFlagEnabled =
+    process.env.USE_DEEP_AGENT === 'true' || options.forceDeep === true;
+
+  const hasLeadsIntent = LEADS_PATTERNS.some((p) => p.test(trimmed));
+  const hasMultiple = hasMultipleTasks(trimmed) || PLANNING_PATTERNS.some((p) => p.test(trimmed));
+  const hasOtherTools = /(weather|mausam|temperature|temp|calculate|\d+[\+\-\*\/×x]\d+|calculator|clock|time|wikipedia|research)/i.test(trimmed);
+
+  // If query is a complex multi-task query (even if it mentions leads), route to Deep Coordinator
+  if (isDeepAgentFlagEnabled && (hasMultiple || (hasLeadsIntent && hasOtherTools))) {
+    return {
+      route: 'deep',
+      isComplex: true,
+      reason: 'complex_multitask_workflow_detected',
+    };
+  }
+
+  // Pure Business Leads intent query (e.g. "Find 5 leads for tech startups in Indore")
+  if (hasLeadsIntent) {
     return {
       route: 'leads',
       isComplex: true,
       reason: 'business_leads_intent_detected',
     };
   }
-
-  const isDeepAgentFlagEnabled =
-    process.env.USE_DEEP_AGENT === 'true' || options.forceDeep === true;
 
   // If USE_DEEP_AGENT flag is false or disabled, always route to classic ReAct agent
   if (!isDeepAgentFlagEnabled) {

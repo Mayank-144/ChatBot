@@ -214,17 +214,99 @@ export const delegateToUtilityAgentTool = tool(
   }
 );
 
+// =========================================================================
+// 3. LEADS AGENT
+// Specialized sub-agent handling business leads discovery and email reporting
+// =========================================================================
+export const delegateToLeadsAgentTool = tool(
+  async ({ task, industry, location, query, sendEmail, recipientEmail }) => {
+    let cleanInd = (industry || '').trim() || 'technology';
+    let cleanLoc = (location || '').trim() || 'India';
+    let shouldSend = Boolean(sendEmail);
+    const to = (recipientEmail || '').trim() || 'mayanktesting144@gmail.com';
+
+    if (task && (!industry || !location)) {
+      const locMatch = task.match(/(?:in|at|near|for)\s+([a-zA-Z\s]+?)(?:$|\bcontact|\bemail|\bwith)/i);
+      if (locMatch) {
+        cleanLoc = locMatch[1].trim();
+        cleanInd = task.replace(locMatch[0], '').replace(/top|best|\d+|companies|startups|leads/gi, '').trim() || cleanInd;
+      }
+      if (/email|send|dispatch/i.test(task)) {
+        shouldSend = true;
+      }
+    }
+
+    console.log(`[DELEGATE] Coordinator -> Leads Agent: "${cleanInd}" in "${cleanLoc}" (Send Email: ${shouldSend})`);
+
+    notifySubagent({
+      name: 'leads-agent',
+      status: 'running',
+      task: `Scouting leads for ${cleanInd} in ${cleanLoc}`,
+    });
+
+    try {
+      const { fetchBusinessLeads } = await import('../tools/leadsTool.js');
+      const { sendLeadsEmail } = await import('../tools/emailTool.js');
+
+      const leads = await fetchBusinessLeads({ industry: cleanInd, location: cleanLoc, query });
+      let emailNote = '';
+      if (shouldSend) {
+        const emailRes = await sendLeadsEmail(leads, to);
+        if (emailRes.success) {
+          emailNote = `\n\n> 📧 **Email Status:** Successfully delivered HTML leads report to \`${emailRes.recipient}\`.`;
+        } else {
+          emailNote = `\n\n> ⚠️ **Email Status:** ${emailRes.message}`;
+        }
+      }
+
+      notifySubagent({
+        name: 'leads-agent',
+        status: 'completed',
+        task: `Discovered 5 leads`,
+        output: `5 verified leads found for ${cleanLoc}`,
+      });
+
+      return JSON.stringify(leads, null, 2) + emailNote;
+    } catch (err) {
+      notifySubagent({
+        name: 'leads-agent',
+        status: 'completed',
+        task: `Leads discovery failed`,
+        output: `Error: ${err.message}`,
+      });
+      return `Leads Agent error: ${err.message}`;
+    }
+  },
+  {
+    name: 'delegate_to_leads_agent',
+    description:
+      'Delegate discovering real business company leads, verified emails, phone numbers, and optional HTML email dispatch to the specialized Leads Agent.',
+    schema: z
+      .object({
+        task: z.string().optional().describe('Leads scouting task description (e.g. "Find 5 AI software companies in Mumbai and send email")'),
+        industry: z.string().optional().describe('Target industry or domain (e.g. "AI software")'),
+        location: z.string().optional().describe('Target city or location (e.g. "Mumbai")'),
+        query: z.string().optional().describe('Custom search query if industry and location are already combined'),
+        sendEmail: z.boolean().optional().describe('Whether to dispatch the HTML report via email'),
+        recipientEmail: z.string().optional().describe('Target email address (defaults to mayanktesting144@gmail.com)'),
+      })
+      .passthrough(),
+  }
+);
+
 /**
  * Subagent delegation tools array exported for the coordinator.
  */
 export const subagentDelegationTools = [
   delegateToResearchAgentTool,
   delegateToUtilityAgentTool,
+  delegateToLeadsAgentTool,
 ];
 
 export default {
   setSubagentEventListener,
   delegateToResearchAgentTool,
   delegateToUtilityAgentTool,
+  delegateToLeadsAgentTool,
   subagentDelegationTools,
 };
