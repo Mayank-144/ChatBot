@@ -49,24 +49,31 @@ export const writeTodosTool = tool(
  * Deep Agent System Prompt defining planning, delegation, and reasoning behavior.
  */
 export const DEEP_AGENT_SYSTEM_PROMPT = `You are Mayank AI, a Master Deep Planning Coordinator.
-You orchestrate complex goals: analyze requests, formulate structured execution plans with 'write_todos', delegate subtasks to specialized sub-agents, pause for Human-in-the-Loop (HITL) approval via 'request_human_approval' when critical or sensitive actions occur, and synthesize the final comprehensive response.
+You orchestrate complex goals: analyze requests, formulate structured execution plans with 'write_todos', delegate subtasks to specialized sub-agents, pause for Human-in-the-Loop (HITL) approval via 'request_human_approval' when critical or sensitive actions occur, and synthesize the final response.
 
 Execution Protocols:
 1. INITIAL PLANNING & DELEGATION:
    - When a complex multi-step request arrives, establish your plan first using 'write_todos' with clear, actionable steps:
      * Research subtasks -> delegate to 'delegate_to_research_agent'
      * Math, calculations, weather, and time subtasks -> delegate to 'delegate_to_utility_agent'
-     * Sensitive, critical, or financial actions -> pause and request approval using 'request_human_approval' with action and details.
+     * Sensitive, critical, or financial actions -> pause and request approval using 'request_human_approval' with action, details, and estimatedCost.
    - Dispatch subtasks efficiently to the appropriate specialist agents without redundant duplicate calls.
 
-2. HUMAN-IN-THE-LOOP (HITL) APPROVAL:
-   - When the user asks to confirm before executing a sensitive action, or when performing critical operations:
-     * Call 'request_human_approval' with { action: "...", details: "..." }.
+2. HUMAN-IN-THE-LOOP (HITL) APPROVAL & STRICT STOP PROTOCOL:
+   - When the user asks to confirm before executing a sensitive action, or when performing critical operations (bookings, transactions, payments, contracts, deployments, data deletion):
+     * Call 'request_human_approval' with { action: "...", details: "...", estimatedCost: "..." }.
      * Execution will pause on the server and await human approval (Approve or Reject).
-     * If approved, proceed with the execution. If rejected, cancel the sensitive action and report to the user.
+   - STRICT STOP ON REJECTION:
+     * If the human reviewer rejects (decision === 'reject' or status === 'rejected'):
+       -> YOU MUST STOP IMMEDIATELY!
+       -> DO NOT generate lengthy multi-day itineraries, detailed schedules, contingency plans, or full project reports.
+       -> Output ONLY a short, professional cancellation statement (2-3 sentences max) confirming that the action was rejected by the reviewer and the entire operation has been aborted with zero funds or bookings processed.
+   - ON APPROVAL:
+     * If approved (decision === 'approve' or status === 'approved'):
+       -> Proceed with full execution and provide the comprehensive final report with all confirmed details, itineraries, and findings.
 
 3. FINAL SYNTHESIS:
-   - Provide a clean, well-formatted Markdown report of all findings, calculations, and data.
+   - If approved, provide a clean, well-formatted Markdown report of all findings, calculations, and data.
    - If user writes in English, reply in English.
    - If user writes in Hinglish, reply in natural Hinglish or English using Latin letters. Never reply in Devanagari Hindi unless asked.`;
 
@@ -253,6 +260,7 @@ export async function runDeepAgent({
   let latestTodos = [];
   let activeSubagentCount = 0;
   let currentSubagentName = null;
+  let wasRejected = false;
 
   const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -262,6 +270,7 @@ export async function runDeepAgent({
       fallbackContent = '';
       activeSubagentCount = 0;
       currentSubagentName = null;
+      wasRejected = false;
 
       // Stream agent events with strict recursionLimit to prevent infinite loops
       const eventStream = await agent.streamEvents(
@@ -348,11 +357,32 @@ export async function runDeepAgent({
 
           // Check if write_todos produced an updated todo list
           if (event.name === 'write_todos' && notifyTodoUpdate) {
-            const rawTodos = event.data?.output?.todos;
-            if (Array.isArray(rawTodos) && rawTodos.length > 0) {
+            const rawTodos =
+              event.data?.output?.todos ||
+              event.data?.output?.content?.todos ||
+              event.data?.output?.content;
+            if (rawTodos) {
               latestTodos = normalizeTodos(rawTodos);
               notifyTodoUpdate(latestTodos);
             }
+          }
+
+          // Check if human approval tool returned rejection
+          if (event.name === 'request_human_approval') {
+            try {
+              let rawOut = event.data?.output;
+              if (rawOut && typeof rawOut.content === 'string') {
+                rawOut = rawOut.content;
+              }
+              if (typeof rawOut === 'string') {
+                try {
+                  rawOut = JSON.parse(rawOut);
+                } catch {}
+              }
+              if (rawOut?.decision === 'reject' || rawOut?.status === 'rejected') {
+                wasRejected = true;
+              }
+            } catch {}
           }
         }
 
@@ -440,12 +470,25 @@ export async function runDeepAgent({
     finalContent = 'I processed your multi-step request, but no additional response was generated.';
   }
 
-  // Finalize all planned tasks as completed (while preserving awaiting_approval items for human review)
+  // Finalize planned tasks (mark cancelled for uncompleted or approval steps if rejected)
   if (latestTodos && latestTodos.length > 0 && onTodoUpdate) {
-    const finalized = latestTodos.map((t) => ({
-      ...t,
-      status: t.status === 'awaiting_approval' ? 'awaiting_approval' : 'completed',
-    }));
+    const finalized = latestTodos.map((t) => {
+      if (wasRejected) {
+        if (
+          t.status === 'awaiting_approval' ||
+          /approval|approve|authorize|confirm|contract|booking|final/i.test(t.text)
+        ) {
+          return { ...t, status: 'cancelled' };
+        }
+        if (t.status === 'pending' || t.status === 'in_progress') {
+          return { ...t, status: 'cancelled' };
+        }
+      }
+      return {
+        ...t,
+        status: t.status === 'awaiting_approval' ? 'awaiting_approval' : 'completed',
+      };
+    });
     onTodoUpdate(finalized);
   }
 

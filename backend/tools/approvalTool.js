@@ -30,11 +30,22 @@ export const requestHumanApprovalTool = tool(
       payload: { action, details, estimatedCost },
     });
 
+    if (result.decision === 'reject') {
+      return JSON.stringify({
+        status: 'rejected',
+        action,
+        decision: 'reject',
+        cost: estimatedCost || 'N/A',
+        instruction: 'CRITICAL: The user has explicitly REJECTED and CANCELLED this action. STOP immediately. Do NOT generate full itineraries, logistical schedules, contingency plans, or lengthy reports. Output ONLY a concise cancellation notice (2-3 sentences) confirming that the action was rejected by the reviewer and the operation has been aborted.',
+      });
+    }
+
     return JSON.stringify({
-      status: result.decision === 'approve' ? 'approved' : 'rejected',
+      status: 'approved',
       action,
-      decision: result.decision,
+      decision: 'approve',
       cost: estimatedCost || 'N/A',
+      instruction: 'The user has APPROVED this action. Proceed with full execution and provide the comprehensive finalized report.',
     });
   },
   {
