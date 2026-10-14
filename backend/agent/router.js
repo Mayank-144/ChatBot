@@ -41,6 +41,18 @@ const PLANNING_PATTERNS = [
   /\bapprove\b/i,
 ];
 
+// Patterns indicating business leads queries
+export const LEADS_PATTERNS = [
+  /\b(?:find|search|get|generate|dhundo)\s+(?:business\s+)?leads\b/i,
+  /\bleads\s+(?:for|in|of)\b/i,
+  /\bbusiness\s+leads\b/i,
+  /\bcompanies\s+dhundo\b/i,
+  /\bdhundo\s+companies\b/i,
+  /\btop\s+\d+\s+.*?\s+companies\s+in\b/i,
+  /\btop\s+companies\s+in\b/i,
+  /\bbusiness\s+intelligence\s+leads\b/i,
+];
+
 /**
  * Checks if the text has multiple independent task instructions or questions
  * @param {string} text
@@ -133,6 +145,17 @@ export function analyzeComplexity(input) {
  * @returns {{ route: 'deep' | 'react', isComplex: boolean, reason: string }}
  */
 export function routeQuery(input, options = {}) {
+  const trimmed = (input || '').trim();
+
+  // 1. Direct Business Leads intent check (always routes to leads agent if active)
+  if (LEADS_PATTERNS.some((p) => p.test(trimmed))) {
+    return {
+      route: 'leads',
+      isComplex: true,
+      reason: 'business_leads_intent_detected',
+    };
+  }
+
   const isDeepAgentFlagEnabled =
     process.env.USE_DEEP_AGENT === 'true' || options.forceDeep === true;
 

@@ -226,6 +226,26 @@ app.post('/api/chat', async (req, res) => {
 
     let agentResult;
 
+    if (routeDecision.route === 'leads') {
+      try {
+        toolsUsed.push('search_business_leads');
+        res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
+
+        const leadsResult = await runLeadsAgent(userInput, sessionId);
+        const chunk = leadsResult.output;
+        res.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: chunk }, finish_reason: 'stop' }],
+          })}\n\n`
+        );
+        res.write(`data: ${JSON.stringify({ toolsUsed })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } catch (leadsErr) {
+        console.error('⚠️ Leads agent streaming failed, falling back:', leadsErr.message);
+      }
+    }
+
     if (routeDecision.route === 'deep') {
       try {
         agentResult = await runDeepAgent({
