@@ -20,9 +20,10 @@ ChatBot/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Chat/                  # MessageList, MessageItem, LiveTodoProgress (Plan & HITL Card), FileCard
-│   │   │   ├── Header/                # Header, Theme Toggle, Clear Conversation
+│   │   │   ├── Header/                # Header, Theme Toggle, Leads Modal Trigger, Clear Conversation
 │   │   │   ├── Icons/                 # High-performance SVG Icon components
-│   │   │   └── Input/                 # ChatInput, StagedFiles, DragOverlay
+│   │   │   ├── Input/                 # ChatInput, StagedFiles, DragOverlay
+│   │   │   └── Leads/                 # LeadsPanel (Modal for search, results, and cron scheduler)
 │   │   ├── hooks/
 │   │   │   ├── useChat.js             # Chat state, typewriter queue, HITL decision handlers
 │   │   │   ├── useFileUpload.js       # 4-tier attachment picker & drag-and-drop
@@ -42,8 +43,9 @@ ChatBot/
 │   │   ├── index.js                   # Classic ReAct Agent runner & model factory
 │   │   ├── deepAgent.js               # Master Deep Planning Coordinator
 │   │   ├── subagents.js               # Specialized Sub-Agents (Research, Utility, Communication)
+│   │   ├── leadsAgent.js              # Autonomous Business Leads Agent Coordinator
 │   │   ├── approvalManager.js         # HITL AsyncLocalStorage & Promise pause/resume manager
-│   │   ├── router.js                  # Deterministic Query Router (Simple vs Complex)
+│   │   ├── router.js                  # Deterministic Query Router (Simple vs Complex vs Leads)
 │   │   └── memory.js                  # Windowed In-Memory Session Storage
 │   ├── tools/                         # 🛠️ LangChain Agent Tools
 │   │   ├── weatherTool.js             # Live OpenWeatherMap API tool
@@ -51,9 +53,12 @@ ChatBot/
 │   │   ├── calculatorTool.js          # High-precision MCP Calculator wrapper
 │   │   ├── timeTool.js                # High-precision MCP Real-Time Clock wrapper
 │   │   ├── approvalTool.js            # General Human Approval tool wrapper (HITL Action Tool)
+│   │   ├── leadsTool.js               # SerpAPI + DuckDuckGo + Wikipedia B2B Lead Generator
+│   │   ├── emailTool.js               # Nodemailer Responsive HTML Email Reporter
 │   │   └── index.js                   # Barrel export for all active agent tools
-│   ├── services/                      # ⏱️ Backend Services (Scheduler & Automations)
-│   ├── index.js                       # Express Server, SSE Streamer, Approval Routes & MCP Client
+│   ├── services/                      # ⏱️ Backend Services
+│   │   └── scheduler.js               # node-cron recurring lead generation & dispatch service
+│   ├── index.js                       # Express Server, SSE Streamer, Leads Endpoints & MCP Client
 │   ├── package.json                   # Backend dependencies
 │   └── .env.example                   # Backend environment template
 │
@@ -88,53 +93,91 @@ User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare e
                                     ▼
                          backend/agent/router.js
                                     │
-                    ┌───────────────┴───────────────┐
-                    ▼                               ▼
-            [Simple Query]                   [Complex Query]
-                    │                               │
-            Classic ReAct Agent             Main Deep Agent Coordinator
-                    │                               │
-                    │               1. Mandatory Plan ('write_todos')
-                    │                  (Broadcasts live checklist to UI)
-                    │                               │
-                    │               2. Specialized Sub-Agent Delegation
-                    │                  ┌────────────┬────────────┐
-                    │                  ▼            ▼            ▼
-                    │            Research       Utility     Communication
-                    │              Agent         Agent          Agent
-                    │             (Wiki)     (Weather+Math)  (Draft Email)
-                    │                  └────────────┬────────────┘
-                    │                               │
-                    │               3. Sensitive Action ('send_email')
-                    │                               │
-                    │                  backend/agent/approvalManager.js
-                    │               ┌───────────────┴───────────────┐
-                    │               ▼                               ▼
-                    │        [GENUINE PAUSE]              Broadcast Approval Event
-                    │     (Node Promise halts)            over SSE to Frontend UI
-                    │                                               │
-                    │                                               ▼
-                    │                                    Frontend displays Card
-                    │                                   [✓ Approve]  [✕ Reject]
-                    │                                               │
-                    │               4. User Decision Received       │
-                    │                  (POST /api/approval)         │
-                    │                               ◄───────────────┘
-                    │               ┌───────────────┴───────────────┐
-                    │               ▼                               ▼
-                    │         [User Approves]                 [User Rejects]
-                    │        Action Executed                 Action Cancelled
-                    │        (Email is sent)                 (Email cancelled)
-                    │               └───────────────┬───────────────┘
-                    │                               │
-                    │               5. Synthesize Final Report
-                    │                  (Stream final response chunks)
-                    │                               │
-                    └───────────────────────────────┴───────────────┐
-                                                                    ▼
-                                                            Frontend Displays
-                                                           Final Comprehensive
-                                                               Markdown Answer
+      ┌─────────────────────────────┼─────────────────────────────┐
+      ▼                             ▼                             ▼
+[Simple Query]               [Complex Query]               [Leads Query]
+      │                             │                             │
+Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
+      │                             │                    (SerpAPI + Email Tool)
+      │             1. Mandatory Plan ('write_todos')
+      │                (Broadcasts live checklist to UI)
+      │                             │
+      │             2. Specialized Sub-Agent Delegation
+      │                ┌────────────┬────────────┐
+      │                ▼            ▼            ▼
+      │          Research       Utility     Communication
+      │            Agent         Agent          Agent
+      │           (Wiki)     (Weather+Math)  (Draft Email)
+      │                └────────────┬────────────┘
+      │                             │
+      │             3. Sensitive Action ('send_email')
+      │                             │
+      │                backend/agent/approvalManager.js
+      │             ┌───────────────┴───────────────┐
+      │             ▼                               ▼
+      │      [GENUINE PAUSE]              Broadcast Approval Event
+      │   (Node Promise halts)            over SSE to Frontend UI
+      │                                             │
+      │                                             ▼
+      │                                  Frontend displays Card
+      │                                 [✓ Approve]  [✕ Reject]
+      │                                             │
+      │             4. User Decision Received       │
+      │                (POST /api/approval)         │
+      │                             ◄───────────────┘
+      │             ┌───────────────┴───────────────┐
+      │             ▼                               ▼
+      │       [User Approves]                 [User Rejects]
+      │      Action Executed                 Action Cancelled
+      │      (Email is sent)                 (Email cancelled)
+      │             └───────────────┬───────────────┘
+      │                             │
+      │             5. Synthesize Final Report
+      │                (Stream final response chunks)
+      │                             │
+      └─────────────────────────────┴─────────────────────────────┐
+                                                                  ▼
+                                                          Frontend Displays
+                                                         Final Comprehensive
+                                                             Markdown Answer
+```
+
+---
+
+## 🎯 Business Leads Agent Workflow
+
+```
+[User via UI Panel]        [node-cron Recurring Schedule]        [Chat Trigger]
+        │                               │                              │
+        └───────────────────────┬───────┴──────────────────────────────┘
+                                │
+                                ▼
+                   backend/agent/leadsAgent.js
+                                │
+                    1. search_business_leads
+                                │
+                                ▼
+                   backend/tools/leadsTool.js
+                   ├── Tier 1: SerpAPI Google Engine
+                   ├── Tier 2: DuckDuckGo Web Engine
+                   └── Tier 3: Wikipedia Corporate Knowledge Fallback
+                                │
+                                ▼
+                     5 Structured B2B Leads
+             (Company, Website, Email, Phone, Description)
+                                │
+             ┌──────────────────┴──────────────────┐
+             ▼                                     ▼
+     [Send Email = true]                   [Send Email = false]
+             │                                     │
+             ▼                                     │
+   backend/tools/emailTool.js                      │
+   (Nodemailer HTML Digest Dispatch)               │
+             │                                     │
+             └──────────────────┬──────────────────┘
+                                │
+                                ▼
+                Return Leads Data & Summary Report
 ```
 
 ---
@@ -150,31 +193,40 @@ User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare e
 | `calculator` | Utility Specialist | MCP (Stdio Client) | High-precision arithmetic (Add, Subtract, Multiply, Divide) |
 | `get_time` | Utility Specialist | MCP (Stdio Client) | Real-time timestamps and local timezone |
 | `get_weather` | Utility Specialist | OpenWeatherMap API | Real-time temperature, humidity, wind, conditions |
+| `search_business_leads` | **Leads Agent** | SerpAPI + DDG + Wiki | Multi-source B2B company discovery with emails, phones, sites |
+| `send_leads_email` | **Leads Agent** | Nodemailer (HTML Table) | Sends executive formatted HTML lead digest email with SMTP |
 
 ---
 
 ## ✨ Core Features & Highlights
 
-### 1. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause
+### 1. 🎯 Autonomous Business Leads Agent & Automated Email Reports
+- **Multi-Source Discovery Engine**: Uses SerpAPI for live Google scraping, DuckDuckGo as secondary web fallback, and Wikipedia corporate registry as third tier to guarantee 5 structured leads.
+- **Executive HTML Email Dispatch**: Uses Nodemailer to format and send responsive HTML tables complete with clickable websites, `mailto:` and `tel:` buttons, and clean status tags.
+- **Automated Recurring Scheduler**: Built-in `node-cron` service supporting predefined presets (`morning`, `evening`, `night`, `midnight`, `disabled`) and arbitrary custom cron expressions.
+- **Dedicated Management Panel**: Access via the top header `🎯 Leads` button to configure searches, trigger manual runs, inspect active cron status, and test email delivery.
+- **Chat Router Integration**: Natural language queries like *"Find AI leads in Indore and email them to me"* are routed directly to the autonomous Leads Agent with SSE streaming.
+
+### 2. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause
 - Critical and sensitive operations genuinely pause execution using `AsyncLocalStorage` and Promise hooks in `approvalManager.js`.
 - The frontend displays an interactive **Human Approval Card** with action details and two actionable buttons:
   - **`[✓ Approve Action]`**: Resumes backend execution, marks action approved, and completes execution.
   - **`[✕ Reject & Cancel]`**: Safely cancels the action and resumes the agent to deliver the report without performing the sensitive action.
 - Zero fake approval: The backend genuinely waits for the human decision.
 
-### 2. 🤖 Specialized Sub-Agents (Task Delegation)
+### 3. 🤖 Specialized Sub-Agents (Task Delegation)
 - **Research Agent**: Handles deep encyclopedic research, definitions, and city facts.
 - **Utility Agent**: Combines arithmetic expressions, real-time clock timestamps, and live weather conditions.
 - Real-time sub-agent badges (`research-agent`, `utility-agent`) stream live to the UI as they run.
 
-### 3. 🧠 Autonomous Dynamic Planning (`write_todos`)
+### 4. 🧠 Autonomous Dynamic Planning (`write_todos`)
 - Breaks complex multi-step queries into a numbered checklist.
 - Updates status in real-time (`in_progress`, `completed`, `awaiting_approval`).
 
-### 4. 🔌 Model Context Protocol (MCP) Integration
+### 5. 🔌 Model Context Protocol (MCP) Integration
 - Direct connection via `@modelcontextprotocol/sdk` on Stdio transport for deterministic, zero-hallucination calculations and system clock timestamps.
 
-### 5. 🖼️ Multimodal Vision & Audio
+### 6. 🖼️ Multimodal Vision & Audio
 - 📸 **Vision AI**: Analyzes photos, diagrams, and screenshots.
 - 🎙️ **Audio Transcription**: In-browser microphone recording and audio file parsing powered by **Groq Whisper Large V3 Turbo**.
 - 📄 **Document Extraction**: In-browser client-side parsing for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
@@ -189,6 +241,9 @@ User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare e
 | `/api/chat` | `POST` | Primary Server-Sent Events (SSE) chat completions stream with multi-tier routing |
 | `/api/approval` | `POST` | Resolves pending human approval (`approvalId`, `sessionId`, `decision: 'approve' \| 'reject'`) |
 | `/api/approval/:sessionId` | `GET` | Queries active pending approvals for a session |
+| `/api/leads/run` | `POST` | Execute on-demand business lead generation and optional email dispatch |
+| `/api/leads/status` | `GET` | Fetch recurring scheduler state, active preset, cron expression, and last execution |
+| `/api/leads/schedule` | `POST` | Dynamically update lead scheduler preset or custom cron schedule |
 | `/api/transcribe` | `POST` | Whisper speech-to-text audio transcription |
 | `/api/memory/clear` | `POST` | Clear conversation memory for a session ID |
 | `/api/mcp/tools` | `GET` | Inspect connected Model Context Protocol tools |
@@ -208,6 +263,18 @@ GROQ_MODEL=openai/gpt-oss-120b
 GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
 OPENWEATHER_API_KEY=your_openweather_api_key_here
 USE_DEEP_AGENT=true
+
+# Business Leads Agent & Email Notifications
+USE_LEADS_AGENT=true
+SERPAPI_KEY=your_serpapi_key_here
+EMAIL_USER=your_gmail_address@gmail.com
+EMAIL_PASS=your_gmail_app_password
+EMAIL_TO=recipient@example.com
+LEADS_SCHEDULE=morning
+LEADS_CRON_EXPR=0 8 * * *
+LEADS_QUERY=AI software development companies
+LEADS_INDUSTRY=Information Technology
+LEADS_LOCATION=San Francisco, CA
 ```
 
 ### 2. Run Locally (Single Command)
@@ -223,26 +290,24 @@ npm run dev
 ### 3. Individual Service Commands
 - **Backend Only**: `npm run backend`
 - **Frontend Only**: `npm run frontend`
-- **MCP Test Client**: `node mcp-server/test-client.js`
 - **Build Frontend Bundle**: `npm run build`
 
 ---
 
-## 🧪 Demonstration Query
+## 🧪 Demonstration Queries
 
-Try pasting this query in the chat:
+### Query 1: Deep Planning & HITL Approval
 ```text
 Find information about Indore, check its current weather, calculate 25 × 4, and prepare an email containing the summary.
 ```
 
-**What you will see:**
-1. A live **Plan Checklist** generated with `write_todos`.
-2. **Sub-agents** running in sequence (`research-agent` → `utility-agent` → `communication-agent`).
-3. An **Approval Card** prompting for human decision with email draft preview.
-4. Clicking **[Approve]** sends the email; clicking **[Reject]** cancels it safely.
-5. The final synthesized Markdown response formatted with all findings!
+### Query 2: Autonomous Business Lead Generation via Chat
+```text
+Find 5 business leads for software agencies in Bangalore and send the executive email report.
+```
 
 ---
 
 ## 📄 License
 This project is licensed under the [MIT License](LICENSE).
+
