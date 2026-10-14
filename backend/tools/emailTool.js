@@ -92,8 +92,8 @@ function buildLeadsHtmlTable(leads = [], dateStr = '') {
  * Creates Nodemailer transporter based on .env config.
  */
 function createTransporter() {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+  const user = (process.env.EMAIL_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '').trim();
 
   if (!user || !pass) {
     return null;
@@ -142,10 +142,12 @@ export async function sendLeadsEmail(leads = [], recipientEmail = null) {
   const transporter = createTransporter();
 
   // 1. If live credentials (EMAIL_USER & EMAIL_PASS) are set in .env, send via real SMTP
-  if (transporter && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  const hasPass = Boolean((process.env.EMAIL_PASS || '').trim());
+  if (transporter && process.env.EMAIL_USER && hasPass) {
     try {
+      const fromUser = (process.env.EMAIL_USER || '').trim();
       const info = await transporter.sendMail({
-        from: `"Mayank AI Leads" <${process.env.EMAIL_USER}>`,
+        from: `"Mayank AI Leads" <${fromUser}>`,
         to,
         subject,
         html: htmlContent,
