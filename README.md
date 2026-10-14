@@ -52,23 +52,28 @@ ChatBot/
 │   │   ├── timeTool.js                # High-precision MCP Real-Time Clock wrapper
 │   │   ├── approvalTool.js            # General Human Approval tool wrapper (HITL Action Tool)
 │   │   └── index.js                   # Barrel export for all active agent tools
+│   ├── services/                      # ⏱️ Backend Services (Scheduler & Automations)
 │   ├── index.js                       # Express Server, SSE Streamer, Approval Routes & MCP Client
-│   └── package.json                   # Backend dependencies
+│   ├── package.json                   # Backend dependencies
+│   └── .env.example                   # Backend environment template
 │
 ├── mcp-server/                        # 🔌 MODEL CONTEXT PROTOCOL (MCP) SERVER
 │   ├── index.js                       # MCP Server with Stdio transport (get_time, calculator)
-│   ├── test-client.js                 # Standalone tester for MCP tool verification
 │   └── package.json                   # MCP dependencies (@modelcontextprotocol/sdk, zod)
 │
-├── api/                               # ⚡ VERCEL SERVERLESS EDGE RUNTIME
-│   ├── chat.js                        # Edge streaming chat endpoint
-│   ├── transcribe.js                  # Edge Whisper audio transcription endpoint
-│   └── health.js                      # Edge health check endpoint
-│
-├── vercel.json                        # Vercel deployment configuration
+├── .gitignore                         # Git exclusion rules
 ├── package.json                       # Root runner (concurrently fullstack dev script)
 └── README.md                          # Repository documentation
 ```
+
+---
+
+## 🔍 Deep Agents Compatibility & Specifications
+
+- **`@langchain/core`**: `^1.2.17` (Meets requirement: `^1.2.14` ✅)
+- **`@langchain/langgraph`**: `^1.4.21` (Meets requirement: `^1.4.10` ✅)
+- **`langchain`**: `^1.5.15` (Meets requirement: `^1.5.10` ✅)
+- **Model Support**: Google Gemini (`gemini-3.5-flash-lite`) and Groq (`openai/gpt-oss-120b`, `llama-3.3-70b-versatile`) with LangGraph native event streaming (`streamEvents`).
 
 ---
 

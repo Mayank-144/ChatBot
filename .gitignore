@@ -8,12 +8,12 @@ client/.env
 server/.env
 
 # Dependencies & Build Output
-node_modules
+node_modules/
 frontend/node_modules
 backend/node_modules
 client/node_modules
 server/node_modules
-dist
+dist/
 frontend/dist
 backend/dist
 client/dist
@@ -41,3 +41,7 @@ lerna-debug.log*
 *.sln
 *.sw?
 scratch/
+
+# Generated Leads Data
+backend/leads-*.json
+leads-*.json
