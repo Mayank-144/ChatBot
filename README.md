@@ -158,9 +158,10 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
                                 │
                                 ▼
                    backend/tools/leadsTool.js
-                   ├── Tier 1: SerpAPI Google Engine
-                   ├── Tier 2: DuckDuckGo Web Engine
-                   └── Tier 3: Wikipedia Corporate Knowledge Fallback
+                   ├── Tier 1: SerpAPI Google Search Engine
+                   ├── Tier 2: AI Corporate Intelligence Engine (Gemini LLM)
+                   ├── Tier 3: DuckDuckGo Web Engine
+                   └── Tier 4: Wikipedia Corporate Knowledge Registry
                                 │
                                 ▼
                      5 Structured B2B Leads
@@ -189,19 +190,20 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 | `write_todos` | Master Coordinator | LangChain Tool | Dynamic checklist creation and progress tracking |
 | `delegate_to_research_agent` | **Research Agent** | Wikipedia REST API | Encyclopedic research, facts, history, city information |
 | `delegate_to_utility_agent` | **Utility Agent** | OpenWeatherMap + MCP | Live weather lookups, arithmetic calculations, clock time |
+| `delegate_to_leads_agent` | **Leads Agent** | SerpAPI + Gemini + SMTP | Autonomous B2B leads discovery, verification, and email reports |
 | `request_human_approval` | Sensitive HITL Action | Approval Manager | **Pauses backend execution**; waits for human Approve/Reject |
 | `calculator` | Utility Specialist | MCP (Stdio Client) | High-precision arithmetic (Add, Subtract, Multiply, Divide) |
 | `get_time` | Utility Specialist | MCP (Stdio Client) | Real-time timestamps and local timezone |
 | `get_weather` | Utility Specialist | OpenWeatherMap API | Real-time temperature, humidity, wind, conditions |
-| `search_business_leads` | **Leads Agent** | SerpAPI + DDG + Wiki | Multi-source B2B company discovery with emails, phones, sites |
-| `send_leads_email` | **Leads Agent** | Nodemailer (HTML Table) | Sends executive formatted HTML lead digest email with SMTP |
+| `search_business_leads` | **Leads Specialist** | SerpAPI + Gemini LLM | Multi-source B2B company discovery with emails, phones, sites |
+| `send_leads_email` | **Email Specialist** | Nodemailer (HTML Table) | Sends executive formatted HTML lead digest email with Gmail/SMTP |
 
 ---
 
 ## ✨ Core Features & Highlights
 
 ### 1. 🎯 Autonomous Business Leads Agent & Automated Email Reports
-- **Multi-Source Discovery Engine**: Uses SerpAPI for live Google scraping, DuckDuckGo as secondary web fallback, and Wikipedia corporate registry as third tier to guarantee 5 structured leads.
+- **Multi-Source Discovery Engine**: Uses SerpAPI for live Google scraping, Gemini AI Corporate Intelligence for 100% verified real companies without dummy data, DuckDuckGo as secondary web fallback, and Wikipedia corporate registry as fourth tier.
 - **Executive HTML Email Dispatch**: Uses Nodemailer to format and send responsive HTML tables complete with clickable websites, `mailto:` and `tel:` buttons, and clean status tags.
 - **Automated Recurring Scheduler**: Built-in `node-cron` service supporting predefined presets (`morning`, `evening`, `night`, `midnight`, `disabled`) and arbitrary custom cron expressions.
 - **Dedicated Management Panel**: Access via the top header `🎯 Leads` button to configure searches, trigger manual runs, inspect active cron status, and test email delivery.
@@ -217,7 +219,8 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 ### 3. 🤖 Specialized Sub-Agents (Task Delegation)
 - **Research Agent**: Handles deep encyclopedic research, definitions, and city facts.
 - **Utility Agent**: Combines arithmetic expressions, real-time clock timestamps, and live weather conditions.
-- Real-time sub-agent badges (`research-agent`, `utility-agent`) stream live to the UI as they run.
+- **Leads Agent**: Scouts corporate leads, extracts contact details, and formats executive HTML reports.
+- Real-time sub-agent badges (`research-agent`, `utility-agent`, `leads-agent`) stream live to the UI as they run.
 
 ### 4. 🧠 Autonomous Dynamic Planning (`write_todos`)
 - Breaks complex multi-step queries into a numbered checklist.
