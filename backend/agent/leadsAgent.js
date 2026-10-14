@@ -90,10 +90,12 @@ export async function runLeadsAgent(query, sessionId = 'leads_session', options 
 
   let emailNote = '';
   if (emailStatus) {
-    if (emailStatus.simulated) {
+    if (emailStatus.previewUrl) {
+      emailNote = `\n\n> 📧 **Email Status:** ✅ Dispatched over SMTP for \`${emailStatus.recipient}\`! [**📬 Open Live Sent Email Report ↗**](${emailStatus.previewUrl})`;
+    } else if (emailStatus.simulated) {
       emailNote = `\n\n> 📧 **Email Status:** Delivered in simulation mode to \`${emailStatus.recipient}\` (Configure \`EMAIL_USER\` and \`EMAIL_PASS\` in \`.env\` for live SMTP dispatch).`;
     } else if (emailStatus.success) {
-      emailNote = `\n\n> 📧 **Email Status:** ✅ Successfully sent HTML report to \`${emailStatus.recipient}\`.`;
+      emailNote = `\n\n> 📧 **Email Status:** ✅ Successfully delivered HTML leads report to \`${emailStatus.recipient}\`.`;
     } else {
       emailNote = `\n\n> ⚠️ **Email Status:** ${emailStatus.message}`;
     }

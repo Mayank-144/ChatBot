@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 
 export function LeadsPanel({ isOpen, onClose }) {
-  const [industry, setIndustry] = useState('tech startups');
-  const [location, setLocation] = useState('Mumbai');
-  const [sendEmail, setSendEmail] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [location, setLocation] = useState('');
+  const [sendEmail, setSendEmail] = useState(true);
+  const [recipientEmail, setRecipientEmail] = useState('mayanktesting144@gmail.com');
   const [loading, setLoading] = useState(false);
   const [leads, setLeads] = useState([]);
   const [emailStatus, setEmailStatus] = useState(null);
@@ -16,6 +16,19 @@ export function LeadsPanel({ isOpen, onClose }) {
   const [scheduleInfo, setScheduleInfo] = useState(null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleSuccessMsg, setScheduleSuccessMsg] = useState(null);
+
+  // Quick preset suggestions
+  const quickSuggestions = [
+    { ind: 'AI Software Companies', loc: 'Bangalore' },
+    { ind: 'Multi-Specialty Hospitals', loc: 'Indore' },
+    { ind: 'Fintech Startups', loc: 'Mumbai' },
+    { ind: 'Cloud & IT Services', loc: 'Pune' },
+  ];
+
+  const applySuggestion = (ind, loc) => {
+    setIndustry(ind);
+    setLocation(loc);
+  };
 
   // Fetch scheduler status on mount and when opened
   useEffect(() => {
@@ -39,7 +52,7 @@ export function LeadsPanel({ isOpen, onClose }) {
   };
 
   const handleRunLeads = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError(null);
     setEmailStatus(null);
     setLoading(true);
@@ -49,10 +62,10 @@ export function LeadsPanel({ isOpen, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          industry,
-          location,
+          industry: industry.trim() || 'technology',
+          location: location.trim() || 'India',
           sendEmail,
-          recipientEmail: recipientEmail || undefined,
+          recipientEmail: recipientEmail.trim() || 'mayanktesting144@gmail.com',
         }),
       });
 
@@ -125,8 +138,32 @@ export function LeadsPanel({ isOpen, onClose }) {
           {/* Section 1: Manual Run */}
           <div className="leads-section">
             <div className="leads-section-header">
-              <h4>🚀 Manual Discovery & Run</h4>
-              <span className="leads-section-subtitle">Discover top 5 target companies instantly</span>
+              <h4>🚀 Real-Time Dynamic Discovery</h4>
+              <span className="leads-section-subtitle">Extract verified companies & dispatch HTML email</span>
+            </div>
+
+            {/* Quick Suggestions */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '12px', color: '#94a3b8', alignSelf: 'center' }}>Quick Try:</span>
+              {quickSuggestions.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => applySuggestion(item.ind, item.loc)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '16px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    color: '#e2e8f0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {item.ind} in {item.loc}
+                </button>
+              ))}
             </div>
 
             <form onSubmit={handleRunLeads} className="leads-form">
@@ -137,7 +174,7 @@ export function LeadsPanel({ isOpen, onClose }) {
                     type="text"
                     value={industry}
                     onChange={(e) => setIndustry(e.target.value)}
-                    placeholder="e.g. tech startups, fintech, AI consulting"
+                    placeholder="e.g. AI software, hospitals, fintech, consulting"
                     required
                   />
                 </div>
@@ -148,7 +185,7 @@ export function LeadsPanel({ isOpen, onClose }) {
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Mumbai, Bangalore, India"
+                    placeholder="e.g. Mumbai, Bangalore, Indore, Delhi"
                     required
                   />
                 </div>
@@ -170,7 +207,8 @@ export function LeadsPanel({ isOpen, onClose }) {
                     className="leads-recipient-input"
                     value={recipientEmail}
                     onChange={(e) => setRecipientEmail(e.target.value)}
-                    placeholder="Recipient email (optional, defaults to .env EMAIL_TO)"
+                    placeholder="Recipient email (e.g. mayanktesting144@gmail.com)"
+                    required
                   />
                 )}
               </div>
@@ -180,12 +218,12 @@ export function LeadsPanel({ isOpen, onClose }) {
                   {loading ? (
                     <>
                       <span className="leads-spinner"></span>
-                      <span>Searching Google & Web...</span>
+                      <span>Researching Real Companies & Sending...</span>
                     </>
                   ) : (
                     <>
                       <span>🔍</span>
-                      <span>Find Top 5 Leads Now</span>
+                      <span>Find 5 Real Leads & Send Report</span>
                     </>
                   )}
                 </button>
@@ -197,9 +235,39 @@ export function LeadsPanel({ isOpen, onClose }) {
 
             {/* Email Dispatch Status */}
             {emailStatus && (
-              <div className={`leads-email-badge ${emailStatus.simulated ? 'simulated' : 'success'}`}>
-                <span>📧</span>
-                <span>{emailStatus.message}</span>
+              <div className={`leads-email-badge ${emailStatus.simulated ? 'simulated' : 'success'}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📧</span>
+                  <span>{emailStatus.message}</span>
+                </div>
+                {emailStatus.previewUrl && (
+                  <div>
+                    <a
+                      href={emailStatus.previewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        background: '#2563eb',
+                        color: '#ffffff',
+                        textDecoration: 'none',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                      }}
+                    >
+                      📬 Open Live Sent Email Preview ↗
+                    </a>
+                  </div>
+                )}
+                {emailStatus.isTestMailbox && (
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    💡 <strong>Direct Inbox Note:</strong> This report was delivered via authenticated SMTP. To route directly into your personal Gmail inbox app, set your 16-character Google App Password in <code>backend/.env</code> as <code>EMAIL_PASS</code>.
+                  </div>
+                )}
               </div>
             )}
 
