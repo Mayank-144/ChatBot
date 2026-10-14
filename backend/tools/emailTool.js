@@ -138,6 +138,9 @@ export async function sendLeadsEmail(leads = [], recipientEmail = null) {
     };
   }
 
+  const plainTextContent = `Top 5 Business Leads — ${todayStr}\n\n` +
+    leads.map((l, i) => `${i + 1}. ${l.companyName}\nWebsite: ${l.website}\nEmail: ${l.email}\nPhone: ${l.phone}\n${l.description}`).join('\n\n');
+
   const htmlContent = buildLeadsHtmlTable(leads, todayStr);
   const transporter = createTransporter();
 
@@ -150,6 +153,7 @@ export async function sendLeadsEmail(leads = [], recipientEmail = null) {
         from: `"Mayank AI Leads" <${fromUser}>`,
         to,
         subject,
+        text: plainTextContent,
         html: htmlContent,
       });
 
