@@ -1,6 +1,6 @@
 import { SunIcon, MoonIcon, TrashIcon } from '../Icons/Icons';
 
-export function Header({ theme, onToggleTheme, onClearChat }) {
+export function Header({ theme, onToggleTheme, onClearChat, onOpenLeads }) {
   return (
     <header className="chat-header">
       <div className="header-left">
@@ -12,6 +12,18 @@ export function Header({ theme, onToggleTheme, onClearChat }) {
       </div>
 
       <div className="header-actions">
+        {/* Leads Intelligence Panel Button */}
+        <button
+          type="button"
+          id="open-leads-btn"
+          className="header-leads-btn"
+          onClick={onOpenLeads}
+          title="Open Business Leads Intelligence Panel"
+        >
+          <span>🎯</span>
+          <span>Leads</span>
+        </button>
+
         {/* Theme Toggle Button */}
         <button
           type="button"

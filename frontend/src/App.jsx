@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Header } from './components/Header/Header';
 import { MessageList } from './components/Chat/MessageList';
 import { ChatInput } from './components/Input/ChatInput';
 import { DragOverlay } from './components/Input/DragOverlay';
+import { LeadsPanel } from './components/Leads/LeadsPanel';
 import { useTheme } from './hooks/useTheme';
 import { useFileUpload } from './hooks/useFileUpload';
 import { useChat } from './hooks/useChat';
@@ -9,6 +11,7 @@ import './App.css';
 
 function App() {
   const { theme, toggleTheme } = useTheme();
+  const [isLeadsOpen, setIsLeadsOpen] = useState(false);
 
   const {
     stagedFiles,
@@ -108,6 +111,7 @@ function App() {
           theme={theme}
           onToggleTheme={toggleTheme}
           onClearChat={onClear}
+          onOpenLeads={() => setIsLeadsOpen(true)}
         />
 
         <MessageList
@@ -133,6 +137,12 @@ function App() {
           onOpenAudioPicker={openAudioPicker}
         />
       </div>
+
+      {/* Business Leads Intelligence Panel Modal */}
+      <LeadsPanel
+        isOpen={isLeadsOpen}
+        onClose={() => setIsLeadsOpen(false)}
+      />
     </div>
   );
 }
