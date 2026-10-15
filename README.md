@@ -202,34 +202,40 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 
 ## ✨ Core Features & Highlights
 
-### 1. 🎯 Autonomous Business Leads Agent & Automated Email Reports
+### 1. 🎯 Autonomous Business Leads Agent & Multi-Schedule Automation
 - **Multi-Source Discovery Engine**: Uses SerpAPI for live Google scraping, Gemini AI Corporate Intelligence for 100% verified real companies without dummy data, DuckDuckGo as secondary web fallback, and Wikipedia corporate registry as fourth tier.
 - **Executive HTML Email Dispatch**: Uses Nodemailer to format and send responsive HTML tables complete with clickable websites, `mailto:` and `tel:` buttons, and clean status tags.
-- **Automated Recurring Scheduler**: Built-in `node-cron` service supporting predefined presets (`morning`, `evening`, `night`, `midnight`, `disabled`) and arbitrary custom cron expressions.
-- **Dedicated Management Panel**: Access via the top header `🎯 Leads` button to configure searches, trigger manual runs, inspect active cron status, and test email delivery.
+- **Multi-Schedule Concurrent Engine**: Supports running multiple schedules simultaneously (e.g., `12:51 PM` for Fintech in Mumbai AND `1:00 PM` for AI in Bangalore). Each active schedule runs as an isolated background cron task.
+- **Smart Time Parser & Afternoon Auto-Detection**: Accepts human clock times (e.g., `12:51 PM`, `14:00`, `9:15 AM`, `1:15`) as well as standard 5-part cron syntax (`* * * * *`, `0 8 * * *`). Automatically detects PM for afternoon entries without AM/PM specified.
+- **Active Schedules Management UI**: Real-time list of all active recurring schedules inside the `🎯 Leads` modal with target metadata, estimated next run, and individual delete (`🗑️`) buttons.
+- **⚡ Instant Test Trigger (`Test Run Now`)**: Trigger immediate lead extraction and email dispatch with 1 click without having to wait for the minute rollover.
 - **Chat Router Integration**: Natural language queries like *"Find AI leads in Indore and email them to me"* are routed directly to the autonomous Leads Agent with SSE streaming.
 
-### 2. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause
+### 2. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause & Clean Synthesis
 - Critical and sensitive operations genuinely pause execution using `AsyncLocalStorage` and Promise hooks in `approvalManager.js`.
 - The frontend displays an interactive **Human Approval Card** with action details and two actionable buttons:
   - **`[✓ Approve Action]`**: Resumes backend execution, marks action approved, and completes execution.
-  - **`[✕ Reject & Cancel]`**: Safely cancels the action and resumes the agent to deliver the report without performing the sensitive action.
-- Zero fake approval: The backend genuinely waits for the human decision.
+  - **`[✕ Reject & Cancel]`**: Safely cancels the action and resumes the agent to deliver an abort notice without performing the sensitive action.
+- **Clean Report Synthesis**: Strict protocols ensure the final markdown response does not duplicate the approval widget or print redundant "Reviewer Status" sections, focusing purely on deliverables.
 
-### 3. 🤖 Specialized Sub-Agents (Task Delegation)
+### 3. ✨ Modern Streamlined Thinking UI
+- Features a single, elegant **`Thinking...` indicator** with a soft glowing pulsing cyan dot and smooth fade animations positioned directly where the response streams in (matching modern ChatGPT/Claude/Gemini UI).
+- Eliminated redundant bouncing dots and header status labels for a distraction-free typing experience.
+
+### 4. 🤖 Specialized Sub-Agents (Task Delegation)
 - **Research Agent**: Handles deep encyclopedic research, definitions, and city facts.
 - **Utility Agent**: Combines arithmetic expressions, real-time clock timestamps, and live weather conditions.
 - **Leads Agent**: Scouts corporate leads, extracts contact details, and formats executive HTML reports.
 - Real-time sub-agent badges (`research-agent`, `utility-agent`, `leads-agent`) stream live to the UI as they run.
 
-### 4. 🧠 Autonomous Dynamic Planning (`write_todos`)
+### 5. 🧠 Autonomous Dynamic Planning (`write_todos`)
 - Breaks complex multi-step queries into a numbered checklist.
 - Updates status in real-time (`in_progress`, `completed`, `awaiting_approval`).
 
-### 5. 🔌 Model Context Protocol (MCP) Integration
+### 6. 🔌 Model Context Protocol (MCP) Integration
 - Direct connection via `@modelcontextprotocol/sdk` on Stdio transport for deterministic, zero-hallucination calculations and system clock timestamps.
 
-### 6. 🖼️ Multimodal Vision & Audio
+### 7. 🖼️ Multimodal Vision & Audio
 - 📸 **Vision AI**: Analyzes photos, diagrams, and screenshots.
 - 🎙️ **Audio Transcription**: In-browser microphone recording and audio file parsing powered by **Groq Whisper Large V3 Turbo**.
 - 📄 **Document Extraction**: In-browser client-side parsing for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
@@ -245,8 +251,11 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 | `/api/approval` | `POST` | Resolves pending human approval (`approvalId`, `sessionId`, `decision: 'approve' \| 'reject'`) |
 | `/api/approval/:sessionId` | `GET` | Queries active pending approvals for a session |
 | `/api/leads/run` | `POST` | Execute on-demand business lead generation and optional email dispatch |
-| `/api/leads/status` | `GET` | Fetch recurring scheduler state, active preset, cron expression, and last execution |
-| `/api/leads/schedule` | `POST` | Dynamically update lead scheduler preset or custom cron schedule |
+| `/api/leads/status` | `GET` | Fetch recurring scheduler state, active schedules count, and last execution |
+| `/api/leads/schedule` | `POST` | Dynamically add recurring schedule (supports presets, custom cron, or human time like "12:51 PM") |
+| `/api/leads/schedule/test-now` | `POST` | Immediately trigger an automated scheduled test run and deliver email directly |
+| `/api/leads/schedule/:id` | `DELETE` | Remove a specific active recurring schedule by unique ID |
+| `/api/leads/schedule/clear` | `POST` | Clear all active recurring schedules |
 | `/api/transcribe` | `POST` | Whisper speech-to-text audio transcription |
 | `/api/memory/clear` | `POST` | Clear conversation memory for a session ID |
 | `/api/mcp/tools` | `GET` | Inspect connected Model Context Protocol tools |
@@ -261,23 +270,21 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 Configure your `backend/.env` file:
 ```env
 PORT=5000
-GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=openai/gpt-oss-120b
-GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.5-flash-lite
+MODEL_PROVIDER=gemini
 OPENWEATHER_API_KEY=your_openweather_api_key_here
 USE_DEEP_AGENT=true
 
 # Business Leads Agent & Email Notifications
 USE_LEADS_AGENT=true
-SERPAPI_KEY=your_serpapi_key_here
 EMAIL_USER=your_gmail_address@gmail.com
 EMAIL_PASS=your_gmail_app_password
-EMAIL_TO=recipient@example.com
+EMAIL_TO=mayanktesting144@gmail.com
 LEADS_SCHEDULE=morning
-LEADS_CRON_EXPR=0 8 * * *
 LEADS_QUERY=AI software development companies
 LEADS_INDUSTRY=Information Technology
-LEADS_LOCATION=San Francisco, CA
+LEADS_LOCATION=India
 ```
 
 ### 2. Run Locally (Single Command)
@@ -299,14 +306,28 @@ npm run dev
 
 ## 🧪 Demonstration Queries
 
-### Query 1: Deep Planning & HITL Approval
+### Query 1: Master All-in-One Multi-Agent Plan (Calls All 8 Tools)
 ```text
-Find information about Indore, check its current weather, calculate 25 × 4, and prepare an email containing the summary.
+We are planning the "India AI & Enterprise Tech Summit 2025" in Bengaluru. Execute this end-to-end multi-agent corporate workflow calling all specialized tools:
+
+1. [Planning Tool]: Formulate a structured step-by-step execution plan using write_todos and track progress.
+2. [Wikipedia Research Tool]: Delegate to Research Agent to fetch and summarize the tech background and growth of Bengaluru as the "Silicon Valley of India" from Wikipedia.
+3. [Live Weather Tool]: Delegate to Utility Agent to check the live current weather and temperature in Bengaluru for event logistics.
+4. [Clock Time Tool]: Delegate to Utility Agent to check the exact real-time local clock time in India.
+5. [Leads Discovery Tool]: Delegate to Leads Agent to search and discover the top 5 genuine, verified enterprise AI and SaaS companies in Bengaluru with official websites, contact emails, phone numbers, and descriptions.
+6. [Math Calculator Tool]: Delegate to Utility Agent to calculate the total budget for 16 executive sponsorship passes at ₹18,500 each plus 18% GST using calculator: (16 * 18500) * 1.18.
+7. [Human-in-the-Loop Approval Tool]: Because this commercial booking commitment exceeds ₹3,00,000, PAUSE execution immediately and request my human approval with the exact calculated budget and attendee count before committing.
+8. [Email Dispatch Tool]: As soon as I approve, compile and autonomously dispatch the complete verified executive HTML briefing report directly to my Gmail inbox: mayanktesting144@gmail.com.
 ```
 
-### Query 2: Autonomous Business Lead Generation via Chat
+### Query 2: Pure Business Leads Agent Trigger via Chat
 ```text
-Find 5 business leads for software agencies in Bangalore and send the executive email report.
+Find 5 business leads for AI companies in Mumbai and send the email report to mayanktesting144@gmail.com
+```
+
+### Query 3: Multi-Task Utility & Deep Planning with HITL
+```text
+We are planning a conference trip to Mumbai. 1. Check live weather in Mumbai. 2. Calculate flight tickets: 4 * 6500. 3. Since the cost is ₹26,000, pause and ask for my approval before proceeding. 4. Once approved, summarize the final itinerary.
 ```
 
 ---
