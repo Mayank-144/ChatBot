@@ -36,8 +36,22 @@ export function parseToCronExpression(input) {
     const minute = parseInt(timeMatch[2], 10);
     const meridian = timeMatch[3]?.toLowerCase();
 
-    if (meridian === 'pm' && hour < 12) hour += 12;
-    if (meridian === 'am' && hour === 12) hour = 0;
+    if (meridian === 'pm' && hour < 12) {
+      hour += 12;
+    } else if (meridian === 'am') {
+      if (hour === 12) hour = 0;
+    } else if (!meridian) {
+      // If user types e.g. "1:06" without AM/PM during afternoon (>= 12:00), automatically default to PM
+      const now = new Date();
+      // Adjust to IST timezone hours if running in different environment
+      const istHour = parseInt(
+        now.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false, hour: 'numeric' }),
+        10
+      );
+      if (istHour >= 12 && hour < 12) {
+        hour += 12;
+      }
+    }
 
     if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
       const parsedCron = `${minute} ${hour} * * *`;
