@@ -12,7 +12,7 @@ import { agentTools, setMcpClient } from './tools/index.js';
 import { clearSessionHistory } from './agent/memory.js';
 import { resolveApproval, getPendingApproval } from './agent/approvalManager.js';
 import { runLeadsAgent } from './agent/leadsAgent.js';
-import { initScheduler, getSchedulerStatus, executeScheduledLeadsRun } from './services/scheduler.js';
+import { initScheduler, addSchedule, removeSchedule, clearAllSchedules, getSchedulerStatus, executeScheduledLeadsRun } from './services/scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -549,7 +549,7 @@ app.get('/api/leads/status', (req, res) => {
   }
 });
 
-// Update schedule dynamically without restart
+// Update or add schedule dynamically without restart
 app.post('/api/leads/schedule', (req, res) => {
   try {
     const { schedule, cronExpr, recipientEmail, industry, location } = req.body || {};
@@ -560,10 +560,39 @@ app.post('/api/leads/schedule', (req, res) => {
       });
     }
 
-    const updatedStatus = initScheduler({ schedule, cronExpr, recipientEmail, industry, location });
+    const updatedStatus = addSchedule({ schedule, cronExpr, recipientEmail, industry, location });
     return res.json({
       success: true,
-      message: `Schedule successfully updated to ${schedule}`,
+      message: schedule === 'disabled' ? 'All schedules disabled' : `Schedule added for ${schedule}`,
+      ...updatedStatus,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Remove a specific schedule by ID
+app.delete('/api/leads/schedule/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedStatus = removeSchedule(id);
+    return res.json({
+      success: true,
+      message: `Schedule ${id} removed successfully`,
+      ...updatedStatus,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Clear all active schedules
+app.post('/api/leads/schedule/clear', (req, res) => {
+  try {
+    const updatedStatus = clearAllSchedules();
+    return res.json({
+      success: true,
+      message: 'All active schedules cleared successfully',
       ...updatedStatus,
     });
   } catch (error) {

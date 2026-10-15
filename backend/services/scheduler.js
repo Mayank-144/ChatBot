@@ -7,15 +7,10 @@ export const SCHEDULE_PRESETS = {
   evening: '0 18 * * *', // 6:00 PM daily
   night: '0 23 * * *', // 11:00 PM daily
   midnight: '0 0 * * *', // 12:00 AM daily
-  disabled: null,
 };
 
-let activeCronTask = null;
-let currentSchedule = 'disabled';
-let currentCronExpr = null;
-let currentRecipient = null;
-let currentIndustry = null;
-let currentLocation = null;
+// Store multiple active scheduled cron jobs
+let activeSchedules = [];
 let lastRunTime = null;
 let lastRunStatus = null;
 
@@ -67,7 +62,7 @@ export function parseToCronExpression(input) {
 /**
  * Calculates a human-readable estimate of the next run time for a given cron expression.
  */
-function estimateNextRun(scheduleKey, cronExpr) {
+export function estimateNextRun(scheduleKey, cronExpr) {
   if (scheduleKey === 'disabled' || !cronExpr) return 'No automatic schedule (Disabled)';
   if (scheduleKey === 'morning') return 'Daily at 8:00 AM IST';
   if (scheduleKey === 'evening') return 'Daily at 6:00 PM IST';
@@ -89,18 +84,19 @@ function estimateNextRun(scheduleKey, cronExpr) {
 }
 
 /**
- * Executes a single automated run of the leads agent and delivers the email report.
+ * Executes an automated run of the leads agent and delivers the email report.
+ * @param {Object} [scheduleConfig] - Specific configuration for this schedule instance
  * @returns {Promise<Object>} Run status result
  */
-export async function executeScheduledLeadsRun() {
+export async function executeScheduledLeadsRun(scheduleConfig = {}) {
   const timestamp = new Date().toISOString();
-  const recipient = (currentRecipient || process.env.EMAIL_TO || 'mayanktesting144@gmail.com').trim();
-  const industry = (currentIndustry || process.env.LEADS_INDUSTRY || 'technology').trim();
-  const location = (currentLocation || process.env.LEADS_LOCATION || 'India').trim();
-  const query = process.env.LEADS_QUERY || `${industry} companies in ${location}`;
+  const recipient = (scheduleConfig.recipientEmail || process.env.EMAIL_TO || 'mayanktesting144@gmail.com').trim();
+  const industry = (scheduleConfig.industry || process.env.LEADS_INDUSTRY || 'technology').trim();
+  const location = (scheduleConfig.location || process.env.LEADS_LOCATION || 'India').trim();
+  const query = scheduleConfig.query || `${industry} companies in ${location}`;
 
-  console.log(`[SCHEDULER] ⏰ Triggered automated leads execution at ${timestamp}`);
-  console.log(`[SCHEDULER] Industry: "${industry}", Location: "${location}", Recipient: "${recipient}"`);
+  console.log(`[SCHEDULER] ⏰ Triggered automated leads execution at ${timestamp} [ID: ${scheduleConfig.id || 'manual'}]`);
+  console.log(`[SCHEDULER] Target: "${industry}" in "${location}", Recipient: "${recipient}"`);
 
   try {
     const result = await runLeadsAgent({
@@ -114,8 +110,11 @@ export async function executeScheduledLeadsRun() {
     lastRunTime = new Date().toISOString();
     lastRunStatus = {
       success: true,
+      scheduleId: scheduleConfig.id || 'manual',
       leadsCount: result.leads?.length || 0,
       recipient,
+      industry,
+      location,
       emailStatus: result.emailStatus?.message || 'Email dispatched successfully',
       timestamp: lastRunTime,
     };
@@ -126,8 +125,11 @@ export async function executeScheduledLeadsRun() {
     lastRunTime = new Date().toISOString();
     lastRunStatus = {
       success: false,
+      scheduleId: scheduleConfig.id || 'manual',
       error: error.message,
       recipient,
+      industry,
+      location,
       timestamp: lastRunTime,
     };
     console.error(`[SCHEDULER] ❌ Automated leads run failed at ${lastRunTime}:`, error.message);
@@ -136,88 +138,158 @@ export async function executeScheduledLeadsRun() {
 }
 
 /**
- * Stops any currently active cron scheduler task.
+ * Stops and removes all currently active cron scheduler tasks.
  */
-export function stopScheduler() {
-  if (activeCronTask) {
-    activeCronTask.stop();
-    activeCronTask = null;
-    console.log('[SCHEDULER] Active cron schedule stopped.');
+export function clearAllSchedules() {
+  for (const s of activeSchedules) {
+    if (s.task) {
+      try {
+        s.task.stop();
+      } catch {}
+    }
   }
+  activeSchedules = [];
+  console.log('[SCHEDULER] All active cron schedules cleared.');
+  return getSchedulerStatus();
 }
 
 /**
- * Initializes or updates the leads automation scheduler.
- * @param {Object} [options]
+ * Removes a single scheduled task by its unique ID.
+ * @param {string} id - Schedule unique ID
+ * @returns {Object} Updated scheduler status
+ */
+export function removeSchedule(id) {
+  const idx = activeSchedules.findIndex((s) => s.id === id);
+  if (idx !== -1) {
+    const removed = activeSchedules[idx];
+    if (removed.task) {
+      try {
+        removed.task.stop();
+      } catch {}
+    }
+    activeSchedules.splice(idx, 1);
+    console.log(`[SCHEDULER] Removed schedule ID: ${id} (${removed.cronExpr})`);
+  }
+  return getSchedulerStatus();
+}
+
+/**
+ * Creates and registers a new active schedule without overwriting existing ones.
+ * Supports comma-separated multiple times/cron (e.g. "12:51 PM, 1:00 PM").
+ * @param {Object} options
  * @param {string} [options.schedule] - Preset ('morning'|'evening'|'night'|'midnight'|'custom'|'disabled')
- * @param {string} [options.cronExpr] - Custom cron expression or time (e.g. "* * * * *" or "12:30 PM")
+ * @param {string} [options.cronExpr] - Custom expression (or comma-separated list)
  * @param {string} [options.recipientEmail] - Target recipient email
  * @param {string} [options.industry] - Target industry
  * @param {string} [options.location] - Target location
- * @returns {Object} Current scheduler status
+ * @returns {Object} Updated scheduler status
  */
-export function initScheduler(options = {}) {
-  const scheduleSetting = (options.schedule || process.env.LEADS_SCHEDULE || 'disabled').toLowerCase().trim();
-  const rawCustomExpr = options.cronExpr || process.env.LEADS_CRON_EXPR;
+export function addSchedule(options = {}) {
+  const scheduleSetting = (options.schedule || 'custom').toLowerCase().trim();
+  const rawCustomExpr = options.cronExpr || '';
 
-  if (options.recipientEmail) currentRecipient = options.recipientEmail.trim();
-  if (options.industry) currentIndustry = options.industry.trim();
-  if (options.location) currentLocation = options.location.trim();
-
-  stopScheduler();
-
-  let targetExpr = null;
-  if (scheduleSetting === 'custom') {
-    targetExpr = parseToCronExpression(rawCustomExpr) || '0 9 * * 1';
-  } else if (SCHEDULE_PRESETS[scheduleSetting]) {
-    targetExpr = SCHEDULE_PRESETS[scheduleSetting];
+  if (scheduleSetting === 'disabled') {
+    return clearAllSchedules();
   }
 
-  currentSchedule = scheduleSetting;
-  currentCronExpr = targetExpr;
+  // Support comma-separated multiple entries: e.g. "12:51 PM, 1:00 PM"
+  const rawList = scheduleSetting === 'custom' && rawCustomExpr.includes(',')
+    ? rawCustomExpr.split(',').map((s) => s.trim()).filter(Boolean)
+    : [rawCustomExpr];
 
-  if (targetExpr && scheduleSetting !== 'disabled') {
-    if (!cron.validate(targetExpr)) {
-      console.warn(`[SCHEDULER] Invalid cron expression: "${targetExpr}". Falling back to disabled.`);
-      currentSchedule = 'disabled';
-      currentCronExpr = null;
-      return getSchedulerStatus();
+  const addedItems = [];
+
+  for (const rawItem of rawList) {
+    let targetExpr = null;
+    if (scheduleSetting === 'custom') {
+      targetExpr = parseToCronExpression(rawItem) || parseToCronExpression(options.cronExpr);
+    } else if (SCHEDULE_PRESETS[scheduleSetting]) {
+      targetExpr = SCHEDULE_PRESETS[scheduleSetting];
     }
 
-    // Schedule task with explicit IST timezone support
-    activeCronTask = cron.schedule(
+    if (!targetExpr || !cron.validate(targetExpr)) {
+      console.warn(`[SCHEDULER] Invalid schedule format: "${rawItem || scheduleSetting}". Skipping.`);
+      continue;
+    }
+
+    const scheduleId = `sched_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const scheduleConfig = {
+      id: scheduleId,
+      schedule: scheduleSetting,
+      cronExpr: targetExpr,
+      rawInput: rawItem || scheduleSetting,
+      nextRun: estimateNextRun(scheduleSetting, targetExpr),
+      industry: (options.industry || process.env.LEADS_INDUSTRY || 'technology').trim(),
+      location: (options.location || process.env.LEADS_LOCATION || 'India').trim(),
+      recipientEmail: (options.recipientEmail || process.env.EMAIL_TO || 'mayanktesting144@gmail.com').trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    // Instantiate and start node-cron task
+    const task = cron.schedule(
       targetExpr,
       () => {
-        executeScheduledLeadsRun();
+        executeScheduledLeadsRun(scheduleConfig);
       },
       {
         timezone: 'Asia/Kolkata',
       }
     );
 
-    console.log(`[SCHEDULER] ✅ Leads scheduler activated: ${scheduleSetting} (${targetExpr}) for ${currentRecipient || 'mayanktesting144@gmail.com'}`);
-  } else {
-    console.log('[SCHEDULER] Leads scheduler is currently disabled.');
+    scheduleConfig.task = task;
+    activeSchedules.push(scheduleConfig);
+    addedItems.push(scheduleConfig);
+
+    console.log(`[SCHEDULER] ✅ Added active schedule [${scheduleId}]: ${targetExpr} for ${scheduleConfig.recipientEmail}`);
   }
 
   return getSchedulerStatus();
 }
 
 /**
- * Returns the current runtime status of the scheduler.
+ * Legacy initialization alias for backwards compatibility.
+ */
+export function initScheduler(options = {}) {
+  if (options.schedule === 'disabled') {
+    return clearAllSchedules();
+  }
+  return addSchedule(options);
+}
+
+/**
+ * Returns the current runtime status including all active schedules.
  */
 export function getSchedulerStatus() {
+  const sanitizedSchedules = activeSchedules.map((s) => ({
+    id: s.id,
+    schedule: s.schedule,
+    cronExpr: s.cronExpr,
+    rawInput: s.rawInput,
+    nextRun: s.nextRun,
+    industry: s.industry,
+    location: s.location,
+    recipientEmail: s.recipientEmail,
+    createdAt: s.createdAt,
+  }));
+
+  const hasActive = activeSchedules.length > 0;
+  const primarySchedule = hasActive ? activeSchedules[activeSchedules.length - 1] : null;
+
   return {
-    active: Boolean(activeCronTask),
-    schedule: currentSchedule,
-    cronExpr: currentCronExpr,
-    nextRun: estimateNextRun(currentSchedule, currentCronExpr),
+    active: hasActive,
+    activeCount: activeSchedules.length,
+    schedules: sanitizedSchedules,
+    schedule: primarySchedule?.schedule || 'disabled',
+    cronExpr: primarySchedule?.cronExpr || null,
+    nextRun: hasActive
+      ? `${activeSchedules.length} active schedule(s): ${sanitizedSchedules.map((s) => s.nextRun).join(' • ')}`
+      : 'No automatic schedule (Disabled)',
     lastRunTime,
     lastRunStatus,
     config: {
-      industry: currentIndustry || process.env.LEADS_INDUSTRY || 'technology',
-      location: currentLocation || process.env.LEADS_LOCATION || 'India',
-      recipientEmail: currentRecipient || process.env.EMAIL_TO || 'mayanktesting144@gmail.com',
+      industry: primarySchedule?.industry || process.env.LEADS_INDUSTRY || 'technology',
+      location: primarySchedule?.location || process.env.LEADS_LOCATION || 'India',
+      recipientEmail: primarySchedule?.recipientEmail || process.env.EMAIL_TO || 'mayanktesting144@gmail.com',
       query: process.env.LEADS_QUERY || 'top tech startups',
     },
   };
@@ -225,9 +297,12 @@ export function getSchedulerStatus() {
 
 export default {
   initScheduler,
-  stopScheduler,
+  addSchedule,
+  removeSchedule,
+  clearAllSchedules,
   getSchedulerStatus,
   executeScheduledLeadsRun,
   parseToCronExpression,
+  estimateNextRun,
   SCHEDULE_PRESETS,
 };

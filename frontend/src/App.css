@@ -2454,3 +2454,71 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Multi-Schedule Cards & List */
+.active-schedules-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.active-schedules-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.active-schedules-header h5 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.active-schedule-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 10px;
+}
+
+.sched-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.sched-item-time {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.sched-item-meta {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.sched-item-del-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.75;
+  transition: all 0.2s;
+}
+
+.sched-item-del-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}

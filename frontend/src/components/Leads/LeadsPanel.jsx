@@ -113,6 +113,22 @@ export function LeadsPanel({ isOpen, onClose }) {
     }
   };
 
+  const handleDeleteSchedule = async (id) => {
+    try {
+      const res = await fetch(`/api/leads/schedule/${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setScheduleInfo(data);
+        setScheduleSuccessMsg('Schedule removed successfully');
+        setTimeout(() => setScheduleSuccessMsg(null), 3000);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to remove schedule');
+    }
+  };
+
   const handleSaveSchedule = async (e) => {
     e.preventDefault();
     setScheduleSaving(true);
@@ -137,7 +153,7 @@ export function LeadsPanel({ isOpen, onClose }) {
       }
 
       setScheduleInfo(data);
-      setScheduleSuccessMsg(`Schedule updated to ${schedule.toUpperCase()}`);
+      setScheduleSuccessMsg(schedule === 'disabled' ? 'All schedules disabled' : 'Schedule added successfully!');
       setTimeout(() => setScheduleSuccessMsg(null), 4000);
     } catch (err) {
       setError(err.message || 'Error updating schedule');
@@ -373,11 +389,11 @@ export function LeadsPanel({ isOpen, onClose }) {
                       type="text"
                       value={cronExpr}
                       onChange={(e) => setCronExpr(e.target.value)}
-                      placeholder="e.g. * * * * * (Every min) or 12:30 PM"
+                      placeholder="e.g. 12:51 PM, 1:00 PM (or * * * * *)"
                       required
                     />
                     <small className="leads-helper-text">
-                      Supports standard cron (<code>* * * * *</code>) OR clock times (<code>12:30 PM</code>, <code>14:00</code>). Auto-converts to IST schedule!
+                      Supports multiple times comma-separated (e.g. <code>12:51 PM, 1:00 PM</code>) OR standard cron (<code>* * * * *</code>)!
                     </small>
                   </div>
                 )}
@@ -385,7 +401,7 @@ export function LeadsPanel({ isOpen, onClose }) {
 
               <div className="leads-schedule-actions">
                 <button type="submit" className="leads-secondary-btn" disabled={scheduleSaving}>
-                  {scheduleSaving ? 'Saving...' : '💾 Save Schedule'}
+                  {scheduleSaving ? 'Saving...' : schedule === 'disabled' ? '⏹️ Disable All' : '➕ Add Schedule'}
                 </button>
 
                 <button
@@ -403,18 +419,41 @@ export function LeadsPanel({ isOpen, onClose }) {
                 )}
               </div>
 
+              {/* Active Recurring Schedules List */}
+              {scheduleInfo?.schedules && scheduleInfo.schedules.length > 0 && (
+                <div className="active-schedules-list">
+                  <div className="active-schedules-header">
+                    <h5>Active Recurring Schedules ({scheduleInfo.schedules.length})</h5>
+                  </div>
+                  {scheduleInfo.schedules.map((s) => (
+                    <div key={s.id} className="active-schedule-item">
+                      <div className="sched-item-info">
+                        <span className="sched-item-time">⏰ {s.nextRun}</span>
+                        <span className="sched-item-meta">
+                          {s.industry} • {s.location} • {s.recipientEmail}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="sched-item-del-btn"
+                        onClick={() => handleDeleteSchedule(s.id)}
+                        title="Delete this schedule"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Scheduler Status Summary */}
               {scheduleInfo && (
                 <div className="leads-status-box">
                   <div className="leads-status-row">
-                    <span>Status:</span>
+                    <span>Overall Status:</span>
                     <strong className={scheduleInfo.active ? 'status-active' : 'status-disabled'}>
-                      {scheduleInfo.active ? '● Active' : '○ Inactive'}
+                      {scheduleInfo.active ? `● ${scheduleInfo.activeCount || 1} Schedule(s) Active` : '○ Inactive'}
                     </strong>
-                  </div>
-                  <div className="leads-status-row">
-                    <span>Next Scheduled Run:</span>
-                    <span>{scheduleInfo.nextRun}</span>
                   </div>
                   <div className="leads-status-row">
                     <span>Last Run:</span>
