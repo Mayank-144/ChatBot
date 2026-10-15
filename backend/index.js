@@ -12,7 +12,7 @@ import { agentTools, setMcpClient } from './tools/index.js';
 import { clearSessionHistory } from './agent/memory.js';
 import { resolveApproval, getPendingApproval } from './agent/approvalManager.js';
 import { runLeadsAgent } from './agent/leadsAgent.js';
-import { initScheduler, getSchedulerStatus } from './services/scheduler.js';
+import { initScheduler, getSchedulerStatus, executeScheduledLeadsRun } from './services/scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -552,7 +552,7 @@ app.get('/api/leads/status', (req, res) => {
 // Update schedule dynamically without restart
 app.post('/api/leads/schedule', (req, res) => {
   try {
-    const { schedule, cronExpr } = req.body || {};
+    const { schedule, cronExpr, recipientEmail, industry, location } = req.body || {};
     if (!schedule) {
       return res.status(400).json({
         success: false,
@@ -560,11 +560,25 @@ app.post('/api/leads/schedule', (req, res) => {
       });
     }
 
-    const updatedStatus = initScheduler({ schedule, cronExpr });
+    const updatedStatus = initScheduler({ schedule, cronExpr, recipientEmail, industry, location });
     return res.json({
       success: true,
       message: `Schedule successfully updated to ${schedule}`,
       ...updatedStatus,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Immediately trigger an automated scheduled test run and deliver email directly
+app.post('/api/leads/schedule/test-now', async (req, res) => {
+  try {
+    const runResult = await executeScheduledLeadsRun();
+    return res.json({
+      success: runResult.success,
+      message: runResult.success ? 'Scheduled test run completed successfully!' : runResult.error,
+      runResult,
     });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });

@@ -85,6 +85,34 @@ export function LeadsPanel({ isOpen, onClose }) {
     }
   };
 
+  const [testRunning, setTestRunning] = useState(false);
+
+  const handleTestScheduleNow = async () => {
+    setTestRunning(true);
+    setScheduleSuccessMsg(null);
+    setError(null);
+    try {
+      const res = await fetch('/api/leads/schedule/test-now', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Failed to trigger test schedule');
+      }
+      setScheduleSuccessMsg(`Delivered automated report to ${data.runResult?.recipient || recipientEmail || 'inbox'}!`);
+      // Refresh status
+      const statusRes = await fetch('/api/leads/status');
+      const statusData = await statusRes.json();
+      if (statusData.success) {
+        setScheduleInfo(statusData);
+      }
+    } catch (err) {
+      setError(err.message || 'Error running test schedule');
+    } finally {
+      setTestRunning(false);
+    }
+  };
+
   const handleSaveSchedule = async (e) => {
     e.preventDefault();
     setScheduleSaving(true);
@@ -97,6 +125,9 @@ export function LeadsPanel({ isOpen, onClose }) {
         body: JSON.stringify({
           schedule,
           cronExpr: schedule === 'custom' ? cronExpr : undefined,
+          recipientEmail: recipientEmail.trim() || undefined,
+          industry: industry.trim() || undefined,
+          location: location.trim() || undefined,
         }),
       });
 
@@ -337,15 +368,17 @@ export function LeadsPanel({ isOpen, onClose }) {
 
                 {schedule === 'custom' && (
                   <div className="leads-input-group">
-                    <label>Cron Expression (5 fields)</label>
+                    <label>Time or Cron Expression</label>
                     <input
                       type="text"
                       value={cronExpr}
                       onChange={(e) => setCronExpr(e.target.value)}
-                      placeholder="e.g. 0 9 * * 1 (Every Monday at 9 AM)"
+                      placeholder="e.g. * * * * * (Every min) or 12:30 PM"
                       required
                     />
-                    <small className="leads-helper-text">Format: Minute Hour Day Month Weekday</small>
+                    <small className="leads-helper-text">
+                      Supports standard cron (<code>* * * * *</code>) OR clock times (<code>12:30 PM</code>, <code>14:00</code>). Auto-converts to IST schedule!
+                    </small>
                   </div>
                 )}
               </div>
@@ -353,6 +386,16 @@ export function LeadsPanel({ isOpen, onClose }) {
               <div className="leads-schedule-actions">
                 <button type="submit" className="leads-secondary-btn" disabled={scheduleSaving}>
                   {scheduleSaving ? 'Saving...' : '💾 Save Schedule'}
+                </button>
+
+                <button
+                  type="button"
+                  className="leads-test-schedule-btn"
+                  onClick={handleTestScheduleNow}
+                  disabled={testRunning}
+                  title="Immediately test execution and email delivery without waiting"
+                >
+                  {testRunning ? '⚡ Sending Test Email...' : '⚡ Test Run Now'}
                 </button>
 
                 {scheduleSuccessMsg && (

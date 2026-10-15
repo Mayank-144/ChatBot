@@ -73,10 +73,13 @@ Execution Protocols:
        -> Output ONLY a short, professional cancellation statement (2-3 sentences max) confirming that the action was rejected by the reviewer and the entire operation has been aborted with zero funds or bookings processed.
    - ON APPROVAL:
      * If approved (decision === 'approve' or status === 'approved'):
-       -> Proceed with full execution and provide the comprehensive final report with all confirmed details, itineraries, and findings.
+       -> Proceed with full execution and provide the comprehensive final report with all confirmed details, calculations, itineraries, and findings.
+       -> CRITICAL: DO NOT include a dedicated "Human Approval", "Approval Status", or "Reviewer Authorization" section in the final text response. The approval event, details, and cost are already cleanly visualized in the UI checkpoint header above.
+       -> Focus strictly on the primary deliverables (weather, calculations, business leads table, and logistics).
 
 3. FINAL SYNTHESIS:
    - If approved, provide a clean, well-formatted Markdown report of all findings, calculations, and data.
+   - Do NOT duplicate UI widgets or approval logs inside the report body.
    - If user writes in English, reply in English.
    - If user writes in Hinglish, reply in natural Hinglish or English using Latin letters. Never reply in Devanagari Hindi unless asked.`;
 

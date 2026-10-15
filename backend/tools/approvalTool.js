@@ -45,7 +45,7 @@ export const requestHumanApprovalTool = tool(
       action,
       decision: 'approve',
       cost: estimatedCost || 'N/A',
-      instruction: 'The user has APPROVED this action. Proceed with full execution and provide the comprehensive finalized report.',
+      instruction: 'The user has APPROVED this action. Proceed with full execution of remaining tasks and provide the final report. IMPORTANT: The approval decision and cost are already visually rendered in the UI checkpoint header widget. Therefore, DO NOT include a dedicated "Human Approval", "Approval Status", or "Reviewer Authorization" section in your markdown response. Focus purely on presenting the actual deliverables (e.g., weather, calculations, business leads table, and dispatch confirmation).',
     });
   },
   {

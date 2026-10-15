@@ -35,16 +35,26 @@ const TOOL_CONFIG = {
   },
 };
 
+function cleanAssistantContent(content) {
+  if (!content || typeof content !== 'string') return content;
+  // Cleanly strip any redundant human approval status blocks if produced by the LLM
+  return content
+    .replace(
+      /(?:^|\n)(?:#{1,4}\s*)?(?:\d+\.?\s*)?(?:Human\s+Approval|Approval\s+(?:&|and)\s+Budget|Reviewer\s+Approval|Budget\s+Authorization)[^\n]*\n(?:\s*[-*•]\s*[^\n]*\n?){1,5}/gi,
+      '\n'
+    )
+    .trim();
+}
+
 export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove, onReject }) {
+  const displayContent = msg.role === 'assistant' ? cleanAssistantContent(msg.content) : msg.content;
+
   return (
     <div className={`message-item ${msg.role}`}>
       <div className="message-meta">
         <span className={`sender-name ${msg.role}`}>
           {msg.role === 'user' ? 'User' : '🤖 Mayank AI'}
         </span>
-        {msg.isStreaming && !msg.content && (
-          <span className="message-status">thinking...</span>
-        )}
       </div>
 
       {/* Render Attached Files */}
@@ -90,7 +100,7 @@ export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove, onReje
       <div className="message-body">
         {msg.role === 'assistant' ? (
           <div className="markdown-render">
-            {msg.content ? (
+            {displayContent ? (
               <>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -98,20 +108,19 @@ export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove, onReje
                     p: ({ children }) => <p className="markdown-paragraph">{children}</p>,
                   }}
                 >
-                  {msg.content}
+                  {displayContent}
                 </ReactMarkdown>
                 {msg.isStreaming && <span className="streaming-cursor"></span>}
               </>
             ) : (
-              <div className="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
+              <div className="thinking-bubble">
+                <span className="thinking-pulse-dot"></span>
+                <span className="thinking-label">Thinking...</span>
               </div>
             )}
           </div>
         ) : (
-          msg.content && <p className="user-text">{msg.content}</p>
+          displayContent && <p className="user-text">{displayContent}</p>
         )}
       </div>
 
