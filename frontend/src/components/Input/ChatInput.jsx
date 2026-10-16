@@ -27,11 +27,12 @@ export function ChatInput({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isBigPrompt, setIsBigPrompt] = useState(false);
   const menuRef = useRef(null);
   const textareaRef = useRef(null);
 
   // Auto-resize textarea height smoothly as prompt length grows or shrinks,
-  // or smoothly scale to a spacious height when expanded
+  // and dynamically detect if prompt is large enough to display the expand arrow
   useEffect(() => {
     if (textareaRef.current) {
       if (isExpanded) {
@@ -41,7 +42,17 @@ export function ChatInput({
         const scrollHeight = textareaRef.current.scrollHeight;
         const nextHeight = Math.min(Math.max(scrollHeight, 24), 180);
         textareaRef.current.style.height = `${nextHeight}px`;
+
+        // Hide arrow by default. Only show if prompt is big (multi-line, wrapped, or long)
+        const trimmed = input.trim();
+        const hasExplicitNewline = input.includes('\n');
+        const hasWrappedLines = scrollHeight > 40;
+        const isLongText = trimmed.length >= 90;
+        const isBig = Boolean(trimmed.length > 0 && (hasExplicitNewline || hasWrappedLines || isLongText));
+        setIsBigPrompt(isBig);
       }
+    } else {
+      setIsBigPrompt(false);
     }
   }, [input, isExpanded]);
 
@@ -230,8 +241,8 @@ export function ChatInput({
           />
 
           <div className="input-actions-right">
-            {/* Upper Right Corner Expand Arrow Button */}
-            {!isExpanded && (
+            {/* Expand Arrow Button: Hidden by default; appears only when prompt is big & multi-line */}
+            {!isExpanded && isBigPrompt && (
               <button
                 type="button"
                 className="expand-arrow-btn"

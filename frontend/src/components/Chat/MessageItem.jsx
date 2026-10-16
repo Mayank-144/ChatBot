@@ -51,6 +51,10 @@ export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove, onReje
   const [isExpanded, setIsExpanded] = useState(false);
   const displayContent = msg.role === 'assistant' ? cleanAssistantContent(msg.content) : msg.content;
 
+  const isMessageBig = Boolean(
+    displayContent && (displayContent.length > 240 || displayContent.split('\n').length > 4 || msg.toolsUsed?.length > 0 || displayContent.includes('```'))
+  );
+
   return (
     <div className={`message-item ${msg.role} ${isExpanded ? 'is-expanded' : ''}`}>
       <div className="message-header-bar">
@@ -59,7 +63,7 @@ export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove, onReje
             {msg.role === 'user' ? 'User' : '🤖 Mayank AI'}
           </span>
         </div>
-        {displayContent && (
+        {(isMessageBig || isExpanded) && (
           <button
             type="button"
             className="msg-expand-btn"
