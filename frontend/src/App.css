@@ -1753,11 +1753,11 @@
 /* Main Input Box Wrapper */
 .input-box-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 6px 8px 6px 10px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -1772,6 +1772,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  margin-bottom: 2px;
 }
 
 .attach-btn {
@@ -1912,7 +1913,9 @@
   color: var(--text-muted);
 }
 
-.input-box-wrapper input {
+.input-box-wrapper input,
+.input-box-wrapper textarea,
+.chat-textarea {
   flex: 1;
   background: transparent;
   border: none;
@@ -1920,12 +1923,31 @@
   box-shadow: none;
   color: var(--text-main);
   font-size: 0.92rem;
-  padding: 8px 0;
+  font-family: inherit;
+  line-height: 1.5;
+  padding: 8px 4px;
   caret-color: var(--text-main);
+  resize: none;
+  min-height: 24px;
+  max-height: 180px;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
-.input-box-wrapper input::placeholder {
+.input-box-wrapper input::placeholder,
+.input-box-wrapper textarea::placeholder,
+.chat-textarea::placeholder {
   color: var(--text-muted);
+}
+
+.chat-textarea::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chat-textarea::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
 }
 
 .send-btn {
@@ -1942,6 +1964,7 @@
   gap: 6px;
   transition: background-color 0.2s, opacity 0.2s, transform 0.1s;
   white-space: nowrap;
+  margin-bottom: 2px;
 }
 
 .send-btn:hover:not(:disabled) {

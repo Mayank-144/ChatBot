@@ -25,6 +25,17 @@ export function ChatInput({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Auto-resize textarea height smoothly as prompt length grows or shrinks
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const nextHeight = Math.min(Math.max(scrollHeight, 24), 180);
+      textareaRef.current.style.height = `${nextHeight}px`;
+    }
+  }, [input]);
 
   const isAnyFileParsing = stagedFiles.some((f) => f.status === 'parsing');
   const isSendDisabled = isAnyFileParsing || (!input.trim() && stagedFiles.length === 0);
@@ -153,8 +164,10 @@ export function ChatInput({
           )}
         </div>
 
-        <input
-          type="text"
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          className="chat-textarea"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
