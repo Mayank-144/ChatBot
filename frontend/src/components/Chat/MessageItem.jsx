@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { CopyIcon, CheckIcon } from '../Icons/Icons';
+import { CopyIcon, CheckIcon, MaximizeIcon, MinimizeIcon } from '../Icons/Icons';
 import { FileCard } from './FileCard';
 import { LiveTodoProgress } from './LiveTodoProgress';
 
@@ -47,14 +48,28 @@ function cleanAssistantContent(content) {
 }
 
 export function MessageItem({ msg, index, copiedIndex, onCopy, onApprove, onReject }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const displayContent = msg.role === 'assistant' ? cleanAssistantContent(msg.content) : msg.content;
 
   return (
-    <div className={`message-item ${msg.role}`}>
-      <div className="message-meta">
-        <span className={`sender-name ${msg.role}`}>
-          {msg.role === 'user' ? 'User' : '🤖 Mayank AI'}
-        </span>
+    <div className={`message-item ${msg.role} ${isExpanded ? 'is-expanded' : ''}`}>
+      <div className="message-header-bar">
+        <div className="message-meta">
+          <span className={`sender-name ${msg.role}`}>
+            {msg.role === 'user' ? 'User' : '🤖 Mayank AI'}
+          </span>
+        </div>
+        {displayContent && (
+          <button
+            type="button"
+            className="msg-expand-btn"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            title={isExpanded ? 'Collapse content' : 'Expand full content (⤢)'}
+            aria-label={isExpanded ? 'Collapse content' : 'Expand content'}
+          >
+            {isExpanded ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
+          </button>
+        )}
       </div>
 
       {/* Render Attached Files */}

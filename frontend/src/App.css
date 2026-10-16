@@ -332,6 +332,43 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.message-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.msg-expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0.7;
+}
+
+.msg-expand-btn:hover {
+  opacity: 1;
+  color: #3b82f6;
+  background-color: var(--btn-bg);
+  transform: scale(1.08);
+}
+
+.message-item.is-expanded {
+  background-color: var(--bg-card);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  border-radius: 14px;
+  padding: 16px 18px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .message-meta {
   display: flex;
   justify-content: space-between;
@@ -1752,19 +1789,109 @@
 
 /* Main Input Box Wrapper */
 .input-box-wrapper {
+  position: relative;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 8px;
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 6px 8px 6px 10px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s, box-shadow 0.2s;
 }
 
 .input-box-wrapper:focus-within {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.input-box-wrapper.is-expanded {
+  background-color: var(--bg-card);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(59, 130, 246, 0.25);
+  padding: 10px 12px 10px 12px;
+  border-radius: 16px;
+}
+
+/* Expanded Mode Header inside Input Box */
+.expanded-prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px 8px 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+  animation: fadeIn 0.2s ease;
+}
+
+.expanded-prompt-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.expanded-mode-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.expanded-stats-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Row containing Attach + Textarea + Right Actions */
+.input-content-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.input-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+/* Upper Right Corner / Action Expand Arrow Button */
+.expand-arrow-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.expand-arrow-btn:hover {
+  color: #3b82f6;
+  background-color: var(--btn-bg);
+  transform: scale(1.08);
+}
+
+.expand-arrow-btn:active {
+  transform: scale(0.95);
+}
+
+.expand-arrow-btn.active {
+  color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.12);
 }
 
 /* Attach Menu Wrapper & ChatGPT Style Dropdown */
@@ -1948,6 +2075,16 @@
 .chat-textarea::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.16);
   border-radius: 4px;
+}
+
+.chat-textarea.is-expanded {
+  height: 320px !important;
+  min-height: 200px !important;
+  max-height: 50vh !important;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  padding: 10px 6px;
+  transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .send-btn {
