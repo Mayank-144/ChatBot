@@ -3,12 +3,13 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express%205-339933?logo=node.js&logoColor=white)](https://expressjs.com/)
 [![LangChain](https://img.shields.io/badge/Agent-LangChain%20%26%20DeepAgents-1C3C3C?logo=langchain&logoColor=white)](https://js.langchain.com/)
+[![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-4285F4?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Groq](https://img.shields.io/badge/AI-Groq%20Cloud-F55036?logo=groq&logoColor=white)](https://groq.com/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP%20SDK-purple?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Groq](https://img.shields.io/badge/AI-Groq%20Cloud-F55036?logo=fastapi&logoColor=white)](https://groq.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Overview:** An enterprise-ready, autonomous fullstack AI ChatBot combining React 18, Express 5, LangChain ReAct & DeepAgents, Model Context Protocol (MCP), and **Human-in-the-Loop (HITL)** approval. Features autonomous planning (`write_todos`), specialized sub-agents delegation (`research-agent`, `utility-agent`, `communication-agent`), genuine backend pause-and-resume approval, real-time SSE streaming, multimodal vision, and Whisper audio transcription.
+> **Overview:** An enterprise-ready, autonomous fullstack AI ChatBot combining React 18, Express 5, LangChain ReAct & DeepAgents, Model Context Protocol (MCP), and **Human-in-the-Loop (HITL)** approval. Features autonomous planning (`write_todos`), specialized sub-agents delegation (`research-agent`, `utility-agent`, `leads-agent`), genuine backend pause-and-resume approval, real-time SSE streaming, multimodal vision, and Whisper audio transcription.
 
 ---
 
@@ -42,7 +43,7 @@ ChatBot/
 │   ├── agent/                         # 🤖 Multi-Tier Agent Core
 │   │   ├── index.js                   # Classic ReAct Agent runner & model factory
 │   │   ├── deepAgent.js               # Master Deep Planning Coordinator
-│   │   ├── subagents.js               # Specialized Sub-Agents (Research, Utility, Communication)
+│   │   ├── subagents.js               # Specialized Sub-Agents (Research, Utility, Leads)
 │   │   ├── leadsAgent.js              # Autonomous Business Leads Agent Coordinator
 │   │   ├── approvalManager.js         # HITL AsyncLocalStorage & Promise pause/resume manager
 │   │   ├── router.js                  # Deterministic Query Router (Simple vs Complex vs Leads)
@@ -66,6 +67,7 @@ ChatBot/
 │   ├── index.js                       # MCP Server with Stdio transport (get_time, calculator)
 │   └── package.json                   # MCP dependencies (@modelcontextprotocol/sdk, zod)
 │
+├── LICENSE                            # MIT Open Source License
 ├── .gitignore                         # Git exclusion rules
 ├── package.json                       # Root runner (concurrently fullstack dev script)
 └── README.md                          # Repository documentation
@@ -73,19 +75,27 @@ ChatBot/
 
 ---
 
-## 🔍 Deep Agents Compatibility & Specifications
+## ⚡ Tech Stack & Specifications
 
-- **`@langchain/core`**: `^1.2.17` (Meets requirement: `^1.2.14` ✅)
-- **`@langchain/langgraph`**: `^1.4.21` (Meets requirement: `^1.4.10` ✅)
-- **`langchain`**: `^1.5.15` (Meets requirement: `^1.5.10` ✅)
-- **Model Support**: Google Gemini (`gemini-3.5-flash-lite`) and Groq (`openai/gpt-oss-120b`, `llama-3.3-70b-versatile`) with LangGraph native event streaming (`streamEvents`).
+| Component | Technology | Version / Specification | Role in System |
+| :--- | :--- | :--- | :--- |
+| **Agent Framework** | `@langchain/langgraph` | `^1.4.21` | Graph-based state machine & native event streaming (`streamEvents`) |
+| **Agent Primitives** | `@langchain/core` / `langchain` | `^1.2.17` / `^1.5.15` | Core message primitives, runnable tools, and prompt chains |
+| **Deep Planning** | `deepagents` | `^1.14.2` | Hierarchical planning and dynamic task coordination |
+| **Protocol** | `@modelcontextprotocol/sdk` | `^1.30.0` | Stdio client & server connection for deterministic utility tools |
+| **Primary LLM** | Google Gemini (`@langchain/google-genai`) | `gemini-3.5-flash-lite` | Ultra-fast multimodal chat and corporate reasoning engine |
+| **Secondary LLM** | Groq Cloud (`@langchain/groq`) | `llama-3.3-70b-versatile` | Ultra-low latency fallback and Whisper speech transcription |
+| **Backend API** | Node.js + Express | `v5.2.1` (ES Modules) | High-concurrency REST & SSE streaming server |
+| **Task Scheduler** | `node-cron` | `^4.6.0` | Multi-schedule recurring background jobs with auto-PM detection |
+| **Email Service** | `nodemailer` | `^10.1.1` | Responsive HTML table briefing generation and SMTP dispatch |
+| **Frontend UI** | React 18 + Vite 6 | `^18.3.1` / `^6.0.0` | Glassmorphism interface, custom typewriter queue, dark/light themes |
 
 ---
 
 ## 🔀 Deep Agent Workflow & HITL Architecture
 
 ```
-User Query: "Find info about Indore, check weather, calculate 25 × 4, prepare email summary."
+User Query: "Find info about Bengaluru, check weather, calculate budget, prepare email summary."
                                     │
                                     ▼
                              POST /api/chat
@@ -105,12 +115,12 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
       │             2. Specialized Sub-Agent Delegation
       │                ┌────────────┬────────────┐
       │                ▼            ▼            ▼
-      │          Research       Utility     Communication
-      │            Agent         Agent          Agent
-      │           (Wiki)     (Weather+Math)  (Draft Email)
+      │          Research       Utility        Leads
+      │            Agent         Agent         Agent
+      │           (Wiki)     (Weather+Math) (B2B + Email)
       │                └────────────┬────────────┘
       │                             │
-      │             3. Sensitive Action ('send_email')
+      │             3. Sensitive Action ('request_human_approval')
       │                             │
       │                backend/agent/approvalManager.js
       │             ┌───────────────┴───────────────┐
@@ -129,7 +139,7 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
       │             ▼                               ▼
       │       [User Approves]                 [User Rejects]
       │      Action Executed                 Action Cancelled
-      │      (Email is sent)                 (Email cancelled)
+      │      (Email is sent)                 (Email aborted)
       │             └───────────────┬───────────────┘
       │                             │
       │             5. Synthesize Final Report
@@ -185,30 +195,30 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 
 ## 🛠️ Autonomous Tools & Sub-Agents
 
-| Agent / Tool Name | Domain / Subagent | Engine / API | Capability |
+| Tool / Sub-Agent Name | Domain / Specialist | Engine / Provider | Capability |
 | :--- | :--- | :--- | :--- |
-| `write_todos` | Master Coordinator | LangChain Tool | Dynamic checklist creation and progress tracking |
-| `delegate_to_research_agent` | **Research Agent** | Wikipedia REST API | Encyclopedic research, facts, history, city information |
-| `delegate_to_utility_agent` | **Utility Agent** | OpenWeatherMap + MCP | Live weather lookups, arithmetic calculations, clock time |
-| `delegate_to_leads_agent` | **Leads Agent** | SerpAPI + Gemini + SMTP | Autonomous B2B leads discovery, verification, and email reports |
-| `request_human_approval` | Sensitive HITL Action | Approval Manager | **Pauses backend execution**; waits for human Approve/Reject |
+| `write_todos` | Master Coordinator | LangChain Tool | Dynamic checklist creation, step recording, and progress tracking |
+| `delegate_to_research_agent` | **Research Agent** | Wikipedia REST API | Encyclopedic research, facts, history, definitions, and city data |
+| `delegate_to_utility_agent` | **Utility Agent** | OpenWeatherMap + MCP | Live weather lookups, arithmetic calculations, and clock time |
+| `delegate_to_leads_agent` | **Leads Agent** | SerpAPI + Gemini + SMTP | Autonomous B2B leads discovery, contact verification, and email reports |
+| `request_human_approval` | Sensitive HITL Action | Approval Manager | **Pauses backend execution**; waits for human Approve/Reject decision |
 | `calculator` | Utility Specialist | MCP (Stdio Client) | High-precision arithmetic (Add, Subtract, Multiply, Divide) |
-| `get_time` | Utility Specialist | MCP (Stdio Client) | Real-time timestamps and local timezone |
-| `get_weather` | Utility Specialist | OpenWeatherMap API | Real-time temperature, humidity, wind, conditions |
-| `search_business_leads` | **Leads Specialist** | SerpAPI + Gemini LLM | Multi-source B2B company discovery with emails, phones, sites |
-| `send_leads_email` | **Email Specialist** | Nodemailer (HTML Table) | Sends executive formatted HTML lead digest email with Gmail/SMTP |
+| `get_time` | Utility Specialist | MCP (Stdio Client) | Real-time timestamps and local timezone resolution |
+| `get_weather` | Utility Specialist | OpenWeatherMap API | Real-time temperature, humidity, wind, and weather conditions |
+| `search_business_leads` | **Leads Specialist** | SerpAPI + Gemini LLM | Multi-source B2B company discovery with emails, phones, and websites |
+| `send_leads_email` | **Email Specialist** | Nodemailer (HTML Table) | Sends executive formatted HTML lead digest email via Gmail/SMTP |
 
 ---
 
 ## ✨ Core Features & Highlights
 
 ### 1. 🎯 Autonomous Business Leads Agent & Multi-Schedule Automation
-- **Multi-Source Discovery Engine**: Uses SerpAPI for live Google scraping, Gemini AI Corporate Intelligence for 100% verified real companies without dummy data, DuckDuckGo as secondary web fallback, and Wikipedia corporate registry as fourth tier.
+- **Multi-Source Discovery Engine**: Uses SerpAPI for live Google scraping, Gemini AI Corporate Intelligence for verified real companies, DuckDuckGo as secondary web fallback, and Wikipedia corporate registry as fourth tier.
 - **Executive HTML Email Dispatch**: Uses Nodemailer to format and send responsive HTML tables complete with clickable websites, `mailto:` and `tel:` buttons, and clean status tags.
 - **Multi-Schedule Concurrent Engine**: Supports running multiple schedules simultaneously (e.g., `12:51 PM` for Fintech in Mumbai AND `1:00 PM` for AI in Bangalore). Each active schedule runs as an isolated background cron task.
 - **Smart Time Parser & Afternoon Auto-Detection**: Accepts human clock times (e.g., `12:51 PM`, `14:00`, `9:15 AM`, `1:15`) as well as standard 5-part cron syntax (`* * * * *`, `0 8 * * *`). Automatically detects PM for afternoon entries without AM/PM specified.
-- **Active Schedules Management UI**: Real-time list of all active recurring schedules inside the `🎯 Leads` modal with target metadata, estimated next run, and individual delete (`🗑️`) buttons.
-- **⚡ Instant Test Trigger (`Test Run Now`)**: Trigger immediate lead extraction and email dispatch with 1 click without having to wait for the minute rollover.
+- **Active Schedules Management UI**: Real-time list of all active recurring schedules inside the `🎯 Leads` modal with target metadata, estimated next run, and individual delete (`🗑️`) controls.
+- **⚡ Instant Test Trigger (`Test Run Now`)**: Trigger immediate lead extraction and email dispatch with 1 click without waiting for minute rollover.
 - **Chat Router Integration**: Natural language queries like *"Find AI leads in Indore and email them to me"* are routed directly to the autonomous Leads Agent with SSE streaming.
 
 ### 2. 🛡️ Human-in-the-Loop (HITL) with Genuine Backend Pause & Clean Synthesis
@@ -219,8 +229,8 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 - **Clean Report Synthesis**: Strict protocols ensure the final markdown response does not duplicate the approval widget or print redundant "Reviewer Status" sections, focusing purely on deliverables.
 
 ### 3. ✨ Modern Streamlined Thinking UI
-- Features a single, elegant **`Thinking...` indicator** with a soft glowing pulsing cyan dot and smooth fade animations positioned directly where the response streams in (matching modern ChatGPT/Claude/Gemini UI).
-- Eliminated redundant bouncing dots and header status labels for a distraction-free typing experience.
+- Features a single, elegant **`Thinking...` indicator** with a soft glowing pulsing cyan dot and smooth fade animations positioned directly where the response streams in.
+- Eliminated redundant bouncing dots and header status labels for a clean, distraction-free typing experience.
 
 ### 4. 🤖 Specialized Sub-Agents (Task Delegation)
 - **Research Agent**: Handles deep encyclopedic research, definitions, and city facts.
@@ -235,7 +245,7 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 ### 6. 🔌 Model Context Protocol (MCP) Integration
 - Direct connection via `@modelcontextprotocol/sdk` on Stdio transport for deterministic, zero-hallucination calculations and system clock timestamps.
 
-### 7. 🖼️ Multimodal Vision & Audio
+### 7. 🖼️ Multimodal Vision, Audio & Document Extraction
 - 📸 **Vision AI**: Analyzes photos, diagrams, and screenshots.
 - 🎙️ **Audio Transcription**: In-browser microphone recording and audio file parsing powered by **Groq Whisper Large V3 Turbo**.
 - 📄 **Document Extraction**: In-browser client-side parsing for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
@@ -260,7 +270,7 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 | `/api/memory/clear` | `POST` | Clear conversation memory for a session ID |
 | `/api/mcp/tools` | `GET` | Inspect connected Model Context Protocol tools |
 | `/api/mcp/time` | `GET` | Direct test endpoint for MCP `get_time` |
-| `/api/mcp/calculate`| `GET` | Direct test endpoint for MCP `calculator` |
+| `/api/mcp/calculate` | `GET` | Direct test endpoint for MCP `calculator` |
 
 ---
 
@@ -270,17 +280,28 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 Configure your `backend/.env` file:
 ```env
 PORT=5000
+
+# AI Model Provider: 'gemini' (recommended) or 'groq'
+MODEL_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-3.5-flash-lite
-MODEL_PROVIDER=gemini
+
+# Groq Cloud (Optional for Groq LLM fallback or Whisper Audio Transcription)
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Real-Time Weather Tool
 OPENWEATHER_API_KEY=your_openweather_api_key_here
+
+# Deep Planning Coordinator
 USE_DEEP_AGENT=true
 
 # Business Leads Agent & Email Notifications
 USE_LEADS_AGENT=true
+SERPAPI_KEY=your_serpapi_key_here
 EMAIL_USER=your_gmail_address@gmail.com
 EMAIL_PASS=your_gmail_app_password
-EMAIL_TO=mayanktesting144@gmail.com
+EMAIL_TO=recipient@example.com
 LEADS_SCHEDULE=morning
 LEADS_QUERY=AI software development companies
 LEADS_INDUSTRY=Information Technology
@@ -317,12 +338,12 @@ We are planning the "India AI & Enterprise Tech Summit 2025" in Bengaluru. Execu
 5. [Leads Discovery Tool]: Delegate to Leads Agent to search and discover the top 5 genuine, verified enterprise AI and SaaS companies in Bengaluru with official websites, contact emails, phone numbers, and descriptions.
 6. [Math Calculator Tool]: Delegate to Utility Agent to calculate the total budget for 16 executive sponsorship passes at ₹18,500 each plus 18% GST using calculator: (16 * 18500) * 1.18.
 7. [Human-in-the-Loop Approval Tool]: Because this commercial booking commitment exceeds ₹3,00,000, PAUSE execution immediately and request my human approval with the exact calculated budget and attendee count before committing.
-8. [Email Dispatch Tool]: As soon as I approve, compile and autonomously dispatch the complete verified executive HTML briefing report directly to my Gmail inbox: mayanktesting144@gmail.com.
+8. [Email Dispatch Tool]: As soon as I approve, compile and autonomously dispatch the complete verified executive HTML briefing report directly to my Gmail inbox: recipient@example.com.
 ```
 
 ### Query 2: Pure Business Leads Agent Trigger via Chat
 ```text
-Find 5 business leads for AI companies in Mumbai and send the email report to mayanktesting144@gmail.com
+Find 5 business leads for AI companies in Mumbai and send the email report to recipient@example.com
 ```
 
 ### Query 3: Multi-Task Utility & Deep Planning with HITL
@@ -334,4 +355,3 @@ We are planning a conference trip to Mumbai. 1. Check live weather in Mumbai. 2.
 
 ## 📄 License
 This project is licensed under the [MIT License](LICENSE).
-

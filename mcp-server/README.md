@@ -37,7 +37,7 @@ npm start
   "mcpServers": {
     "chatbot-tools": {
       "command": "node",
-      "args": ["c:/Users/mayank jaiswal/OneDrive/Desktop/ChatBot/mcp-server/index.js"]
+      "args": ["<path-to-workspace>/mcp-server/index.js"]
     }
   }
 }
