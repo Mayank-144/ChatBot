@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { sendChatMessage, submitApprovalDecision } from '../services/api';
+import { sendChatMessage, submitApprovalDecision, BACKEND_BASE } from '../services/api';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const createSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -45,7 +45,8 @@ export function useChat() {
     isStoppedRef.current = true;
 
     // Reset memory for previous session on backend
-    fetch('/api/memory/clear', {
+    const clearUrl = BACKEND_BASE ? `${BACKEND_BASE}/api/memory/clear` : '/api/memory/clear';
+    fetch(clearUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId }),

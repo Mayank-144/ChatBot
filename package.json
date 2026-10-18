@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "npx -y concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
-    "build": "cd frontend && npm install && npm run build",
+    "build": "cd frontend && npm install && npm run build && cd .. && node -e \"const fs = require('fs'); fs.cpSync('frontend/dist', 'dist', { recursive: true });\"",
     "backend": "npm --prefix backend run dev",
     "frontend": "npm --prefix frontend run dev",
     "server": "npm --prefix backend run dev",

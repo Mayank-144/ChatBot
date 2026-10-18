@@ -1,4 +1,7 @@
-const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
+export const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '/api/chat';
+export const BACKEND_BASE = import.meta.env.VITE_BACKEND_API_URL
+  ? import.meta.env.VITE_BACKEND_API_URL.replace(/\/api\/chat\/?$/, '')
+  : '';
 
 /**
  * Send chat messages to custom backend API and receive streaming response
@@ -169,7 +172,8 @@ export async function sendChatMessage({
  * @returns {Promise<Object>}
  */
 export async function submitApprovalDecision({ approvalId, sessionId = 'default', decision }) {
-  const response = await fetch('/api/approval', {
+  const approvalUrl = BACKEND_BASE ? `${BACKEND_BASE}/api/approval` : '/api/approval';
+  const response = await fetch(approvalUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

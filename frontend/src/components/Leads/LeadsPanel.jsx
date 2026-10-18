@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BACKEND_BASE } from '../../services/api';
 
 export function LeadsPanel({ isOpen, onClose }) {
   const [industry, setIndustry] = useState('');
@@ -39,7 +40,7 @@ export function LeadsPanel({ isOpen, onClose }) {
 
   const fetchScheduleStatus = async () => {
     try {
-      const res = await fetch('/api/leads/status');
+      const res = await fetch(`${BACKEND_BASE}/api/leads/status`);
       if (res.ok) {
         const data = await res.json();
         setScheduleInfo(data);
@@ -58,7 +59,7 @@ export function LeadsPanel({ isOpen, onClose }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/leads/run', {
+      const res = await fetch(`${BACKEND_BASE}/api/leads/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -92,7 +93,7 @@ export function LeadsPanel({ isOpen, onClose }) {
     setScheduleSuccessMsg(null);
     setError(null);
     try {
-      const res = await fetch('/api/leads/schedule/test-now', {
+      const res = await fetch(`${BACKEND_BASE}/api/leads/schedule/test-now`, {
         method: 'POST',
       });
       const data = await res.json();
@@ -101,7 +102,7 @@ export function LeadsPanel({ isOpen, onClose }) {
       }
       setScheduleSuccessMsg(`Delivered automated report to ${data.runResult?.recipient || recipientEmail || 'inbox'}!`);
       // Refresh status
-      const statusRes = await fetch('/api/leads/status');
+      const statusRes = await fetch(`${BACKEND_BASE}/api/leads/status`);
       const statusData = await statusRes.json();
       if (statusData.success) {
         setScheduleInfo(statusData);
@@ -115,7 +116,7 @@ export function LeadsPanel({ isOpen, onClose }) {
 
   const handleDeleteSchedule = async (id) => {
     try {
-      const res = await fetch(`/api/leads/schedule/${id}`, {
+      const res = await fetch(`${BACKEND_BASE}/api/leads/schedule/${id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -135,7 +136,7 @@ export function LeadsPanel({ isOpen, onClose }) {
     setScheduleSuccessMsg(null);
 
     try {
-      const res = await fetch('/api/leads/schedule', {
+      const res = await fetch(`${BACKEND_BASE}/api/leads/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
