@@ -7,6 +7,7 @@
 [![Groq](https://img.shields.io/badge/AI-Groq%20Cloud-F55036?logo=groq&logoColor=white)](https://groq.com/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP%20SDK-purple?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Overview:** An enterprise-ready, autonomous fullstack AI ChatBot combining React 18, Express 5, LangChain ReAct & DeepAgents, Model Context Protocol (MCP), and **Human-in-the-Loop (HITL)** approval. Features autonomous planning (`write_todos`), specialized sub-agents delegation (`research-agent`, `utility-agent`, `leads-agent`), genuine backend pause-and-resume approval, real-time SSE streaming, multimodal vision, and Whisper audio transcription.
@@ -37,6 +38,7 @@ ChatBot/
 │   │   ├── App.css                    # Glassmorphism CSS design system & micro-animations
 │   │   └── main.jsx                   # Vite React DOM mount point
 │   ├── vite.config.js                 # Vite dev proxy configuration (/api -> :5000)
+│   ├── vercel.json                    # Frontend Vercel SPA routing configuration
 │   └── package.json                   # Frontend dependencies
 │
 ├── backend/                           # ⚙️ BACKEND (Node.js + Express 5 API + LangChain + MCP Client)
@@ -67,6 +69,7 @@ ChatBot/
 │   ├── index.js                       # MCP Server with Stdio transport (get_time, calculator)
 │   └── package.json                   # MCP dependencies (@modelcontextprotocol/sdk, zod)
 │
+├── vercel.json                        # Root Vercel monorepo build & routing configuration
 ├── LICENSE                            # MIT Open Source License
 ├── .gitignore                         # Git exclusion rules
 ├── package.json                       # Root runner (concurrently fullstack dev script)
@@ -322,6 +325,19 @@ npm run dev
 - **Backend Only**: `npm run backend`
 - **Frontend Only**: `npm run frontend`
 - **Build Frontend Bundle**: `npm run build`
+
+### 4. 🌐 Vercel Production Deployment
+Deploying the frontend to Vercel is fully automated and pre-configured:
+
+1. **Import Repository**: Connect your GitHub repository (`ChatBot`) to Vercel.
+2. **Build Settings**:
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build` (automatically compiles frontend and outputs to `./dist`)
+   - **Output Directory**: `dist`
+3. **Environment Variables**:
+   - `VITE_BACKEND_API_URL`: Your deployed backend URL (e.g. `https://your-backend.onrender.com/api/chat`).
+4. **Deploy**:
+   - Click **Deploy**. Vercel will build the frontend, handle all SPA routes via `vercel.json`, and seamlessly connect chat, approvals, and leads endpoints to your live backend.
 
 ---
 
