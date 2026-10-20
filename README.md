@@ -8,6 +8,8 @@
 [![MCP](https://img.shields.io/badge/Protocol-MCP%20SDK-purple?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com/)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-success?logo=statuspage&logoColor=white)](https://github.com/Mayank-144/ChatBot)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](https://github.com/Mayank-144/ChatBot/pulls)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Overview:** An enterprise-ready, autonomous fullstack AI ChatBot combining React 18, Express 5, LangChain ReAct & DeepAgents, Model Context Protocol (MCP), and **Human-in-the-Loop (HITL)** approval. Features autonomous planning (`write_todos`), specialized sub-agents delegation (`research-agent`, `utility-agent`, `leads-agent`), genuine backend pause-and-resume approval, real-time SSE streaming, multimodal vision, and Whisper audio transcription.
@@ -366,6 +368,27 @@ Find 5 business leads for AI companies in Mumbai and send the email report to re
 ```text
 We are planning a conference trip to Mumbai. 1. Check live weather in Mumbai. 2. Calculate flight tickets: 4 * 6500. 3. Since the cost is ₹26,000, pause and ask for my approval before proceeding. 4. Once approved, summarize the final itinerary.
 ```
+
+---
+
+## 🔧 Troubleshooting & Configuration FAQ
+
+### 1. How do I configure Gmail for automated lead email reports?
+- In Google Account settings, ensure **2-Step Verification** is turned ON.
+- Navigate to **Security** → **2-Step Verification** → **App passwords** (or search "App passwords").
+- Generate a new app password named `ChatBot Leads` (a 16-character code).
+- Place the 16-character code in `EMAIL_PASS` in your `backend/.env`.
+
+### 2. Can I toggle between Google Gemini and Groq Cloud?
+- Yes! The agent router and model factory in `backend/agent/index.js` dynamically switch providers via:
+  - `MODEL_PROVIDER=gemini` (uses `gemini-3.5-flash-lite` by default)
+  - `MODEL_PROVIDER=groq` (uses `llama-3.3-70b-versatile` or `openai/gpt-oss-120b`)
+- Audio transcription via `/api/transcribe` uses Groq Whisper Large V3 Turbo independently of the primary chat LLM.
+
+### 3. How do I connect the Vercel deployed frontend to a remote backend?
+- In your Vercel Project Settings, go to **Environment Variables**.
+- Set `VITE_BACKEND_API_URL` to your live backend endpoint (e.g. `https://your-backend.onrender.com/api/chat`).
+- All requests for chat streaming, human-in-the-loop approvals, audio transcription, memory reset, and business leads will automatically resolve through the configured backend base URL.
 
 ---
 
