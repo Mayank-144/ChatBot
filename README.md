@@ -255,6 +255,13 @@ Classic ReAct Agent         Main Deep Coordinator        Autonomous Leads Agent
 - 🎙️ **Audio Transcription**: In-browser microphone recording and audio file parsing powered by **Groq Whisper Large V3 Turbo**.
 - 📄 **Document Extraction**: In-browser client-side parsing for **PDF**, **Excel**, **Word**, **CSV**, **JSON**, and **Code** files.
 
+### 8. ⌨️ Interactive Controls & Smart Input UX
+- **Auto-Expanding Textarea**: Smoothly grows and shrinks with word-wrapping as you type.
+- **Large Prompt Overlay (`↗ Expand`)**: Seamless top-right expansion button that enlarges the input for reviewing complex, multi-line prompts.
+- **Push-to-Talk Voice Input**: One-click microphone recording with real-time waveform and instant Whisper speech transcription.
+- **Unified Drag & Drop Attachment**: Attach multi-tier documents (PDF, Excel spreadsheets, Word docs, code files, and images) with automatic client-side parsing.
+- **Session Memory Reset**: One-click conversation purge that releases previous turn context both on client and backend windowed storage.
+
 ---
 
 ## 🔗 Backend API Endpoints
@@ -312,6 +319,26 @@ LEADS_QUERY=AI software development companies
 LEADS_INDUSTRY=Information Technology
 LEADS_LOCATION=India
 ```
+
+#### Environment Variables Reference
+
+| Variable | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Optional | `5000` | Port on which the Express API server listens |
+| `MODEL_PROVIDER` | Optional | `gemini` | Primary AI provider (`gemini` or `groq`) |
+| `GEMINI_API_KEY` | Required (Gemini) | — | API key from Google AI Studio |
+| `GEMINI_MODEL` | Optional | `gemini-3.5-flash-lite` | Model identifier for Google Gemini |
+| `GROQ_API_KEY` | Optional | — | Required for Whisper speech-to-text and Groq LLM fallback |
+| `GROQ_MODEL` | Optional | `llama-3.3-70b-versatile` | Model identifier for Groq Cloud |
+| `OPENWEATHER_API_KEY` | Optional | — | Real-time weather data for Utility Agent |
+| `USE_DEEP_AGENT` | Optional | `true` | Enable master deep planning coordinator (`write_todos`) |
+| `USE_LEADS_AGENT` | Optional | `true` | Enable autonomous business leads agent |
+| `SERPAPI_KEY` | Optional | — | Google search engine scraping for corporate intelligence |
+| `EMAIL_USER` | Optional | — | Sender Gmail/SMTP address for email reports |
+| `EMAIL_PASS` | Optional | — | Google App Password (16-character code) |
+| `EMAIL_TO` | Optional | — | Target recipient address for automated lead summaries |
+| `LEADS_SCHEDULE` | Optional | `morning` | Default scheduler preset (`morning`, `afternoon`, `custom`, `disabled`) |
+| `VITE_BACKEND_API_URL` | Optional (Frontend)| `/api/chat` | Live backend URL when frontend is deployed on Vercel |
 
 ### 2. Run Locally (Single Command)
 From the root directory:
